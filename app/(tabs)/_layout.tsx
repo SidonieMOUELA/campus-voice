@@ -1,35 +1,30 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarStyle: { backgroundColor: '#1e293b', borderTopColor: '#334155' },
+      tabBarActiveTintColor: '#3b82f6',
+      tabBarInactiveTintColor: '#64748b',
+    }}>
+      <Tabs.Screen name="feed" options={{
+        title: 'Accueil',
+        tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />
+      }} />
+      <Tabs.Screen name="create" options={{
+        title: 'Signaler',
+        tabBarIcon: ({ color, size }) => <Ionicons name="add-circle" size={size} color={color} />
+      }} />
+      <Tabs.Screen name="edt" options={{
+        title: 'Emploi du temps',
+        tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />
+      }} />
+      <Tabs.Screen name="profile" options={{
+        title: 'Profil',
+        tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />
+      }} />
     </Tabs>
   );
 }
