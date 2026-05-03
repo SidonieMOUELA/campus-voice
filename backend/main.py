@@ -260,3 +260,42 @@ def add_commentaire(id: int, data: CommentaireCreate, token: str = Depends(oauth
 def get_commentaires(id: int, db: Session = Depends(get_db)):
     from models import Commentaire
     return db.query(Commentaire).filter(Commentaire.signalement_id == id).all()
+# --- KPIs Dashboard ---
+@app.get("/dashboard/kpis")
+def get_kpis(db: Session = Depends(get_db)):
+    total = db.query(Signalement).count()
+    resolus = db.query(Signalement).filter(Signalement.statut == "resolu").count()
+    taux_resolution = round((resolus / total * 100), 1) if total > 0 else 0
+    
+    # Catégorie la plus signalée
+    from sqlalchemy import func
+    top_cat = db.query(
+        Signalement.categorie,
+        func.count(Signalement.id).label("total")
+    ).group_by(Signalement.categorie).order_by(func.count(Signalement.id).desc()).first()
+
+    # Nombre de bugs
+    bugs = db.query(Signalement).filter(Signalement.categorie == "autre").count()
+
+    return {
+        "total_signalements": total,
+        "taux_resolution": taux_resolution,
+        "categorie_top": top_cat[0] if top_cat else None,
+        "bugs": bugs
+    }
+
+# --- Top 5 problèmes ---
+@app.get("/dashboard/top5")
+def get_top5(db: Session = Depends(get_db)):
+    signalements = db.query(Signalement).order_by(Signalement.score_ia.desc()).limit(5).all()
+    return [
+        {
+            "id": s.id,
+            "titre": s.titre,
+            "categorie": s.categorie,
+            "score_ia": s.score_ia,
+            "likes": s.likes,
+            "statut": s.statut
+        }
+        for s in signalements
+    ]
