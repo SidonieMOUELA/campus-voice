@@ -1,51 +1,47 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from dotenv import load_dotenv
+from models import Base, User
 import os
 
 load_dotenv()
 
-app = FastAPI(title="CampusVoice API", version="1.0.0")
-
+# --- Config ---
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# --- Base de données ---
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(bind=engine)
+
+# --- App ---
+app = FastAPI(title="CampusVoice API", version="1.0.0")
+
+# --- CORS (pour le dashboard et l'app mobile) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# --- Utilitaires JWT ---
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-# --- Route de test ---
-@app.get("/")
-def root():
-    return {"message": "CampusVoice API is running 🚀"}
-
-# --- Login ---
-@app.post("/token")
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    if form_data.username != "admin@afi.sn" or form_data.password != "admin123":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Identifiants incorrects"
-        )
-    token = create_access_token(data={"sub": form_data.username})
-    return {"access_token": token, "token_type": "bearer"}
-
-# --- Route protégée ---
-@app.get("/me")
-def get_me(token: str = Depends(oauth2_scheme)):
+# --- Dépendance DB ---
+def get_db():
+    db = SessionLocal()
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        return {"email": email, "message": "Token valide ✅"}
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token invalide")
+        yield db
+    finally:
+        db.close()
