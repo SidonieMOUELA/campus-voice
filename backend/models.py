@@ -45,3 +45,11 @@ class Note(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     etudiant = relationship("User", back_populates="notes")
+class Commentaire(Base):
+    __tablename__ = "commentaires"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contenu = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    signalement_id = Column(Integer, ForeignKey("signalements.id"))

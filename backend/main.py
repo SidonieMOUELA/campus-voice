@@ -172,3 +172,91 @@ def update_statut(id: int, data: SignalementUpdate, token: str = Depends(oauth2_
     db.commit()
     db.refresh(s)
     return s
+# --- Schéma Note ---
+class NoteCreate(BaseModel):
+    matiere: str
+    note: float
+    semestre: str
+
+# --- Routes Notes ---
+@app.post("/notes")
+def create_note(data: NoteCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide")
+    note = Note(
+        matiere=data.matiere,
+        note=data.note,
+        semestre=data.semestre,
+        user_id=user.id
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+@app.get("/notes")
+def get_notes(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide")
+    notes = db.query(Note).filter(Note.user_id == user.id).all()
+    return notes
+
+@app.get("/notes/moyenne")
+def get_moyenne(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide")
+    notes = db.query(Note).filter(Note.user_id == user.id).all()
+    if not notes:
+        return {"message": "Aucune note", "moyennes": {}}
+    moyennes = {}
+    for n in notes:
+        if n.semestre not in moyennes:
+            moyennes[n.semestre] = []
+        moyennes[n.semestre].append(n.note)
+    return {
+        "moyennes": {s: round(sum(v)/len(v), 2) for s, v in moyennes.items()},
+        "moyenne_generale": round(sum(n.note for n in notes) / len(notes), 2)
+    }
+# --- Schéma Commentaire ---
+class CommentaireCreate(BaseModel):
+    contenu: str
+
+# --- Routes Commentaires ---
+@app.post("/signalements/{id}/commentaires")
+def add_commentaire(id: int, data: CommentaireCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token invalide")
+    s = db.query(Signalement).filter(Signalement.id == id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Signalement introuvable")
+    from models import Commentaire
+    commentaire = Commentaire(
+        contenu=data.contenu,
+        user_id=user.id,
+        signalement_id=id
+    )
+    db.add(commentaire)
+    db.commit()
+    db.refresh(commentaire)
+    return commentaire
+
+@app.get("/signalements/{id}/commentaires")
+def get_commentaires(id: int, db: Session = Depends(get_db)):
+    from models import Commentaire
+    return db.query(Commentaire).filter(Commentaire.signalement_id == id).all()
