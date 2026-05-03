@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusVoice — API Tester</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #060f1e; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px; }
+    .wrap { max-width: 800px; margin: 0 auto; }
+    .header { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 16px; padding: 20px 24px; display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .logo { width: 42px; height: 42px; border-radius: 10px; background: #8b1a1a; display: flex; align-items: center; justify-content: center; }
+    .logo svg { width: 22px; height: 22px; }
+    .title { font-size: 18px; font-weight: 600; color: #e2e8f0; }
+    .subtitle { font-size: 12px; color: #4a6080; margin-top: 2px; }
+    .status { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a6080; }
+    .dot.online { background: #8b1a1a; }
+    .status-lbl { font-size: 12px; color: #6b8ab0; }
+    .tabs { display: flex; gap: 4px; background: #0d1f3c; border-radius: 12px; padding: 5px; margin-bottom: 20px; border: 1px solid #1e3a5f; }
+    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: #6b8ab0; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .tab.active { background: #8b1a1a; color: #fff; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .badge-post { font-size: 10px; font-weight: 600; color: #ffb3b3; background: #5c1010; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; letter-spacing: 0.5px; }
+    .badge-get { font-size: 10px; font-weight: 600; color: #93c5fd; background: #1e3a5f; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; letter-spacing: 0.5px; }
+    input, select { width: 100%; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; outline: none; }
+    input::placeholder { color: #4a6080; }
+    input:focus, select:focus { border-color: #8b1a1a; }
+    select option { background: #0d1f3c; }
+    .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: #8b1a1a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: 0.3px; }
+    .btn:hover { background: #a52020; }
+    .btn-sm { padding: 5px 14px; border: none; border-radius: 6px; background: #1e3a5f; color: #93c5fd; font-size: 11px; cursor: pointer; }
+    .btn-sm:hover { background: #2a4f7c; }
+    .response { background: #030810; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #a8c5e8; white-space: pre-wrap; word-break: break-all; margin-top: 12px; display: none; }
+    .response.ok { border-left: 3px solid #8b1a1a; }
+    .response.err { border-left: 3px solid #e24b4a; }
+    .token-box { background: #030810; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; font-family: 'Courier New', monospace; font-size: 10px; color: #6b8ab0; word-break: break-all; }
+    .sig-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1e3a5f; }
+    .sig-title { font-size: 13px; font-weight: 500; color: #e2e8f0; }
+    .sig-sub { font-size: 11px; color: #4a6080; margin-top: 3px; }
+    .pill { font-size: 10px; padding: 3px 9px; border-radius: 5px; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="title">CampusVoice</div>
+      <div class="subtitle">API Tester · localhost:8000 · v1.0.0</div>
+    </div>
+    <div class="status">
+      <div class="dot" id="dot"></div>
+      <span class="status-lbl" id="slbl">Vérification...</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="tab('auth',this)">Auth</button>
+    <button class="tab" onclick="tab('sig',this)">Signalements</button>
+    <button class="tab" onclick="tab('tok',this)">Token</button>
+  </div>
+
+  <div id="p-auth" class="panel active">
+    <div class="grid2">
+      <div class="card">
+        <div class="badge-post">POST /register</div>
+        <input id="r-email" placeholder="email@afi.sn" type="text"/>
+        <input id="r-pass" placeholder="mot de passe" type="password"/>
+        <button class="btn" onclick="doReg()">Créer un compte</button>
+      </div>
+      <div class="card">
+        <div class="badge-post">POST /token</div>
+        <input id="l-email" placeholder="email@afi.sn" type="text"/>
+        <input id="l-pass" placeholder="mot de passe" type="password"/>
+        <button class="btn" onclick="doLogin()">Se connecter</button>
+      </div>
+    </div>
+    <div class="response" id="auth-resp"></div>
+  </div>
+
+  <div id="p-sig" class="panel">
+    <div class="card">
+      <div class="badge-post">POST /signalements</div>
+      <input id="s-titre" placeholder="Titre du signalement" type="text"/>
+      <input id="s-desc" placeholder="Description du problème" type="text"/>
+      <select id="s-cat">
+        <option value="wifi">Wi-Fi</option>
+        <option value="salle">Salle de cours</option>
+        <option value="admin">Administration</option>
+        <option value="autre">Autre</option>
+      </select>
+      <button class="btn" onclick="doSig()">Publier le signalement</button>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="badge-get">GET /signalements</div>
+        <button class="btn-sm" onclick="getSigs()">Actualiser</button>
+      </div>
+      <div id="sig-list" style="font-size:13px;color:#4a6080;">Cliquez sur "Actualiser"</div>
+    </div>
+    <div class="response" id="sig-resp"></div>
+  </div>
+
+  <div id="p-tok" class="panel">
+    <div class="card">
+      <div style="font-size:12px;color:#6b8ab0;margin-bottom:10px;">Token JWT actif</div>
+      <div class="token-box" id="tok-box">Aucun token — connectez-vous d'abord dans Auth.</div>
+    </div>
+    <div class="card">
+      <div class="badge-get">GET /me</div>
+      <button class="btn" onclick="getMe()">Voir mon profil</button>
+      <div class="response" id="me-resp"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+const BASE = 'http://localhost:8000';
+let token = '';
+
+async function ping() {
+  try {
+    const r = await fetch(BASE+'/');
+    if(r.ok){ document.getElementById('dot').className='dot online'; document.getElementById('slbl').textContent='En ligne'; }
+    else throw 0;
+  } catch { document.getElementById('slbl').textContent='Hors ligne'; }
+}
+
+function tab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('p-'+name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function resp(id, data, ok) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  el.className = 'response ' + (ok?'ok':'err');
+  el.textContent = JSON.stringify(data, null, 2);
+}
+
+async function doReg() {
+  const e=document.getElementById('r-email').value, p=document.getElementById('r-pass').value;
+  try {
+    const r = await fetch(BASE+'/register',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username:e,password:p})});
+    resp('auth-resp', await r.json(), r.ok);
+  } catch { resp('auth-resp',{erreur:'API inaccessible — lance uvicorn !'},false); }
+}
+
+async function doLogin() {
+  const e=document.getElementById('l-email').value, p=document.getElementById('l-pass').value;
+  try {
+    const r = await fetch(BASE+'/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username:e,password:p})});
+    const d = await r.json();
+    if(r.ok){ token=d.access_token; document.getElementById('tok-box').textContent=token; }
+    resp('auth-resp', d, r.ok);
+  } catch { resp('auth-resp',{erreur:'API inaccessible — lance uvicorn !'},false); }
+}
+
+async function doSig() {
+  if(!token){ resp('sig-resp',{erreur:'Connectez-vous d\'abord dans Auth'},false); return; }
+  const body={titre:document.getElementById('s-titre').value,description:document.getElementById('s-desc').value,categorie:document.getElementById('s-cat').value};
+  try {
+    const r = await fetch(BASE+'/signalements',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    resp('sig-resp', await r.json(), r.ok);
+    if(r.ok) getSigs();
+  } catch { resp('sig-resp',{erreur:'API inaccessible'},false); }
+}
+
+async function getSigs() {
+  try {
+    const r = await fetch(BASE+'/signalements');
+    const d = await r.json();
+    const el = document.getElementById('sig-list');
+    if(!d.length){ el.innerHTML='<span style="color:#4a6080">Aucun signalement.</span>'; return; }
+    el.innerHTML = d.map(s=>`
+      <div class="sig-item">
+        <div>
+          <div class="sig-title">${s.titre}</div>
+          <div class="sig-sub">${s.categorie} · Score IA: ${s.score_ia.toFixed(2)} · Likes: ${s.likes}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="pill" style="background:${s.statut==='resolu'?'#3b1010':'#1e3a5f'};color:${s.statut==='resolu'?'#ffb3b3':'#93c5fd'}">${s.statut}</span>
+          <button class="btn-sm" onclick="like(${s.id})">+like</button>
+        </div>
+      </div>`).join('');
+  } catch { document.getElementById('sig-list').innerHTML='<span style="color:#e24b4a">Erreur connexion API.</span>'; }
+}
+
+async function like(id) {
+  if(!token) return;
+  await fetch(BASE+'/signalements/'+id+'/like',{method:'POST',headers:{'Authorization':'Bearer '+token}});
+  getSigs();
+}
+
+async function getMe() {
+  if(!token){ resp('me-resp',{erreur:'Connectez-vous d\'abord'},false); return; }
+  try {
+    const r = await fetch(BASE+'/me',{headers:{'Authorization':'Bearer '+token}});
+    resp('me-resp', await r.json(), r.ok);
+  } catch { resp('me-resp',{erreur:'API inaccessible'},false); }
+}
+
+ping();
+</script>
+</body>
+</html>
