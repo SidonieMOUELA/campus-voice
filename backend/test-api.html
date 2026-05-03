@@ -7,35 +7,40 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #060f1e; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px; }
-    .wrap { max-width: 800px; margin: 0 auto; }
+    .wrap { max-width: 900px; margin: 0 auto; }
     .header { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 16px; padding: 20px 24px; display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
     .logo { width: 42px; height: 42px; border-radius: 10px; background: #8b1a1a; display: flex; align-items: center; justify-content: center; }
-    .logo svg { width: 22px; height: 22px; }
     .title { font-size: 18px; font-weight: 600; color: #e2e8f0; }
     .subtitle { font-size: 12px; color: #4a6080; margin-top: 2px; }
     .status { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a6080; }
-    .dot.online { background: #8b1a1a; }
+    .dot.online { background: #22c55e; }
     .status-lbl { font-size: 12px; color: #6b8ab0; }
-    .tabs { display: flex; gap: 4px; background: #0d1f3c; border-radius: 12px; padding: 5px; margin-bottom: 20px; border: 1px solid #1e3a5f; }
-    .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: #6b8ab0; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .tabs { display: flex; gap: 4px; background: #0d1f3c; border-radius: 12px; padding: 5px; margin-bottom: 20px; border: 1px solid #1e3a5f; flex-wrap: wrap; }
+    .tab { flex: 1; padding: 10px 8px; border: none; border-radius: 8px; background: transparent; color: #6b8ab0; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .tab.active { background: #8b1a1a; color: #fff; }
     .panel { display: none; }
     .panel.active { display: block; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
     .card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
-    .badge-post { font-size: 10px; font-weight: 600; color: #ffb3b3; background: #5c1010; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; letter-spacing: 0.5px; }
-    .badge-get { font-size: 10px; font-weight: 600; color: #93c5fd; background: #1e3a5f; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; letter-spacing: 0.5px; }
-    input, select { width: 100%; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; outline: none; }
-    input::placeholder { color: #4a6080; }
-    input:focus, select:focus { border-color: #8b1a1a; }
+    .kpi-card { background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px; padding: 16px; text-align: center; }
+    .kpi-val { font-size: 28px; font-weight: 700; color: #ffb3b3; }
+    .kpi-lbl { font-size: 11px; color: #4a6080; margin-top: 4px; }
+    .badge-post { font-size: 10px; font-weight: 600; color: #ffb3b3; background: #5c1010; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; }
+    .badge-get { font-size: 10px; font-weight: 600; color: #93c5fd; background: #1e3a5f; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; }
+    .badge-alerte { font-size: 10px; font-weight: 600; color: #fbbf24; background: #3d2800; display: inline-block; padding: 3px 10px; border-radius: 5px; margin-bottom: 12px; }
+    input, select, textarea { width: 100%; background: #060f1e; border: 1px solid #1e3a5f; border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; outline: none; }
+    input::placeholder, textarea::placeholder { color: #4a6080; }
+    input:focus, select:focus, textarea:focus { border-color: #8b1a1a; }
     select option { background: #0d1f3c; }
-    .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: #8b1a1a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: 0.3px; }
+    .btn { width: 100%; padding: 10px; border: none; border-radius: 8px; background: #8b1a1a; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
     .btn:hover { background: #a52020; }
     .btn-sm { padding: 5px 14px; border: none; border-radius: 6px; background: #1e3a5f; color: #93c5fd; font-size: 11px; cursor: pointer; }
     .btn-sm:hover { background: #2a4f7c; }
-    .response { background: #030810; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #a8c5e8; white-space: pre-wrap; word-break: break-all; margin-top: 12px; display: none; }
-    .response.ok { border-left: 3px solid #8b1a1a; }
+    .btn-warning { background: #3d2800; color: #fbbf24; border: none; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+    .response { background: #030810; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; font-family: 'Courier New', monospace; font-size: 11px; color: #a8c5e8; white-space: pre-wrap; word-break: break-all; margin-top: 10px; display: none; }
+    .response.ok { border-left: 3px solid #22c55e; }
     .response.err { border-left: 3px solid #e24b4a; }
     .token-box { background: #030810; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; font-family: 'Courier New', monospace; font-size: 10px; color: #6b8ab0; word-break: break-all; }
     .sig-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1e3a5f; }
@@ -43,6 +48,12 @@
     .sig-sub { font-size: 11px; color: #4a6080; margin-top: 3px; }
     .pill { font-size: 10px; padding: 3px 9px; border-radius: 5px; }
     .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .alerte-item { background: #1a0f00; border: 1px solid #3d2800; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+    .alerte-msg { font-size: 12px; color: #fbbf24; }
+    .alerte-sub { font-size: 11px; color: #6b5000; margin-top: 4px; }
+    .top-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1e3a5f; }
+    .top-rank { font-size: 20px; font-weight: 700; color: #8b1a1a; width: 28px; }
+    .section-title { font-size: 13px; font-weight: 600; color: #6b8ab0; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
   </style>
 </head>
 <body>
@@ -50,7 +61,7 @@
 
   <div class="header">
     <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
       </svg>
     </div>
@@ -67,9 +78,12 @@
   <div class="tabs">
     <button class="tab active" onclick="tab('auth',this)">Auth</button>
     <button class="tab" onclick="tab('sig',this)">Signalements</button>
+    <button class="tab" onclick="tab('notes',this)">Notes</button>
+    <button class="tab" onclick="tab('dashboard',this)">Dashboard</button>
     <button class="tab" onclick="tab('tok',this)">Token</button>
   </div>
 
+  <!-- AUTH -->
   <div id="p-auth" class="panel active">
     <div class="grid2">
       <div class="card">
@@ -88,6 +102,7 @@
     <div class="response" id="auth-resp"></div>
   </div>
 
+  <!-- SIGNALEMENTS -->
   <div id="p-sig" class="panel">
     <div class="card">
       <div class="badge-post">POST /signalements</div>
@@ -108,9 +123,75 @@
       </div>
       <div id="sig-list" style="font-size:13px;color:#4a6080;">Cliquez sur "Actualiser"</div>
     </div>
+    <div class="card">
+      <div class="badge-post">POST /signalements/{id}/commentaires</div>
+      <input id="c-id" placeholder="ID du signalement (ex: 1)" type="number"/>
+      <textarea id="c-contenu" placeholder="Votre commentaire..." rows="3"></textarea>
+      <button class="btn" onclick="doComment()">Ajouter un commentaire</button>
+    </div>
     <div class="response" id="sig-resp"></div>
   </div>
 
+  <!-- NOTES -->
+  <div id="p-notes" class="panel">
+    <div class="grid2">
+      <div class="card">
+        <div class="badge-post">POST /notes</div>
+        <input id="n-matiere" placeholder="Matière (ex: Réseaux)" type="text"/>
+        <input id="n-note" placeholder="Note (ex: 15.5)" type="number" step="0.5"/>
+        <select id="n-semestre">
+          <option value="S1">Semestre 1</option>
+          <option value="S2">Semestre 2</option>
+        </select>
+        <button class="btn" onclick="doNote()">Ajouter la note</button>
+      </div>
+      <div class="card">
+        <div class="badge-get">GET /notes/moyenne</div>
+        <button class="btn" onclick="getMoyenne()" style="margin-bottom:12px;">Calculer les moyennes</button>
+        <div id="moyenne-display" style="font-size:13px;color:#4a6080;">Cliquez pour voir les moyennes.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="badge-get">GET /notes</div>
+        <button class="btn-sm" onclick="getNotes()">Voir mes notes</button>
+      </div>
+      <div id="notes-list" style="font-size:13px;color:#4a6080;">Cliquez pour voir vos notes.</div>
+    </div>
+    <div class="response" id="notes-resp"></div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="p-dashboard" class="panel">
+    <div class="section-title">KPIs</div>
+    <div class="grid4" id="kpis-grid">
+      <div class="kpi-card"><div class="kpi-val" id="k-total">—</div><div class="kpi-lbl">Signalements</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="k-taux">—</div><div class="kpi-lbl">Taux résolution</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="k-cat">—</div><div class="kpi-lbl">Catégorie #1</div></div>
+      <div class="kpi-card"><div class="kpi-val" id="k-bugs">—</div><div class="kpi-lbl">Bugs signalés</div></div>
+    </div>
+    <button class="btn" onclick="getKpis()" style="margin-bottom:14px;">Actualiser les KPIs</button>
+
+    <div class="section-title">Top 5 Problèmes</div>
+    <div class="card">
+      <div class="row">
+        <div class="badge-get">GET /dashboard/top5</div>
+        <button class="btn-sm" onclick="getTop5()">Charger</button>
+      </div>
+      <div id="top5-list" style="font-size:13px;color:#4a6080;">Cliquez sur "Charger"</div>
+    </div>
+
+    <div class="section-title">Alertes IA</div>
+    <div class="card">
+      <div class="row">
+        <div class="badge-alerte">GET /dashboard/alertes</div>
+        <button class="btn-sm" onclick="getAlertes()">Détecter</button>
+      </div>
+      <div id="alertes-list" style="font-size:13px;color:#4a6080;">Cliquez sur "Détecter"</div>
+    </div>
+  </div>
+
+  <!-- TOKEN -->
   <div id="p-tok" class="panel">
     <div class="card">
       <div style="font-size:12px;color:#6b8ab0;margin-bottom:10px;">Token JWT actif</div>
@@ -198,10 +279,103 @@ async function getSigs() {
   } catch { document.getElementById('sig-list').innerHTML='<span style="color:#e24b4a">Erreur connexion API.</span>'; }
 }
 
+async function doComment() {
+  if(!token){ resp('sig-resp',{erreur:'Connectez-vous d\'abord dans Auth'},false); return; }
+  const id = document.getElementById('c-id').value;
+  const contenu = document.getElementById('c-contenu').value;
+  try {
+    const r = await fetch(BASE+'/signalements/'+id+'/commentaires',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({contenu})});
+    resp('sig-resp', await r.json(), r.ok);
+  } catch { resp('sig-resp',{erreur:'API inaccessible'},false); }
+}
+
 async function like(id) {
   if(!token) return;
   await fetch(BASE+'/signalements/'+id+'/like',{method:'POST',headers:{'Authorization':'Bearer '+token}});
   getSigs();
+}
+
+async function doNote() {
+  if(!token){ resp('notes-resp',{erreur:'Connectez-vous d\'abord dans Auth'},false); return; }
+  const body={matiere:document.getElementById('n-matiere').value,note:parseFloat(document.getElementById('n-note').value),semestre:document.getElementById('n-semestre').value};
+  try {
+    const r = await fetch(BASE+'/notes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    resp('notes-resp', await r.json(), r.ok);
+    if(r.ok){ getMoyenne(); getNotes(); }
+  } catch { resp('notes-resp',{erreur:'API inaccessible'},false); }
+}
+
+async function getMoyenne() {
+  if(!token) return;
+  try {
+    const r = await fetch(BASE+'/notes/moyenne',{headers:{'Authorization':'Bearer '+token}});
+    const d = await r.json();
+    const el = document.getElementById('moyenne-display');
+    if(d.message){ el.innerHTML='<span style="color:#4a6080">Aucune note.</span>'; return; }
+    el.innerHTML = Object.entries(d.moyennes).map(([s,m])=>`
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e3a5f;">
+        <span style="color:#6b8ab0;font-size:12px;">${s}</span>
+        <span style="color:#ffb3b3;font-size:13px;font-weight:600;">${m}/20</span>
+      </div>`).join('') + `<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:#e2e8f0;font-size:12px;">Moyenne générale</span><span style="color:#22c55e;font-size:14px;font-weight:700;">${d.moyenne_generale}/20</span></div>`;
+  } catch {}
+}
+
+async function getNotes() {
+  if(!token) return;
+  try {
+    const r = await fetch(BASE+'/notes',{headers:{'Authorization':'Bearer '+token}});
+    const d = await r.json();
+    const el = document.getElementById('notes-list');
+    if(!d.length){ el.innerHTML='<span style="color:#4a6080">Aucune note.</span>'; return; }
+    el.innerHTML = d.map(n=>`
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e3a5f;">
+        <div><div style="color:#e2e8f0;font-size:13px;">${n.matiere}</div><div style="color:#4a6080;font-size:11px;">${n.semestre}</div></div>
+        <span style="color:#ffb3b3;font-size:15px;font-weight:600;">${n.note}/20</span>
+      </div>`).join('');
+  } catch {}
+}
+
+async function getKpis() {
+  try {
+    const r = await fetch(BASE+'/dashboard/kpis');
+    const d = await r.json();
+    document.getElementById('k-total').textContent = d.total_signalements;
+    document.getElementById('k-taux').textContent = d.taux_resolution + '%';
+    document.getElementById('k-cat').textContent = d.categorie_top || '—';
+    document.getElementById('k-bugs').textContent = d.bugs;
+  } catch {}
+}
+
+async function getTop5() {
+  try {
+    const r = await fetch(BASE+'/dashboard/top5');
+    const d = await r.json();
+    const el = document.getElementById('top5-list');
+    if(!d.length){ el.innerHTML='<span style="color:#4a6080">Aucun signalement.</span>'; return; }
+    el.innerHTML = d.map((s,i)=>`
+      <div class="top-item">
+        <div class="top-rank">#${i+1}</div>
+        <div style="flex:1;">
+          <div class="sig-title">${s.titre}</div>
+          <div class="sig-sub">${s.categorie} · Score IA: ${s.score_ia.toFixed(2)} · Likes: ${s.likes}</div>
+        </div>
+        <span class="pill" style="background:#1e3a5f;color:#93c5fd;">${s.statut}</span>
+      </div>`).join('');
+  } catch { document.getElementById('top5-list').innerHTML='<span style="color:#e24b4a">Erreur.</span>'; }
+}
+
+async function getAlertes() {
+  try {
+    const r = await fetch(BASE+'/dashboard/alertes');
+    const d = await r.json();
+    const el = document.getElementById('alertes-list');
+    if(!d.alertes.length){ el.innerHTML='<span style="color:#4a6080">Aucune anomalie détectée.</span>'; return; }
+    el.innerHTML = d.alertes.map(a=>`
+      <div class="alerte-item">
+        <div class="alerte-msg">${a.message}</div>
+        <div class="alerte-sub">Score IA: ${a.score_ia} · Catégorie: ${a.categorie}</div>
+      </div>`).join('');
+  } catch { document.getElementById('alertes-list').innerHTML='<span style="color:#e24b4a">Erreur.</span>'; }
 }
 
 async function getMe() {
@@ -213,6 +387,7 @@ async function getMe() {
 }
 
 ping();
+getKpis();
 </script>
 </body>
 </html>

@@ -299,3 +299,30 @@ def get_top5(db: Session = Depends(get_db)):
         }
         for s in signalements
     ]
+# --- Détection d'anomalies ---
+@app.get("/dashboard/alertes")
+def get_alertes(db: Session = Depends(get_db)):
+    from datetime import timedelta
+    limite = datetime.utcnow() - timedelta(hours=48)
+    
+    # Signalements créés dans les 48h avec beaucoup de likes
+    signalements_recents = db.query(Signalement).filter(
+        Signalement.created_at >= limite
+    ).all()
+    
+    alertes = []
+    for s in signalements_recents:
+        if s.likes >= 3:  # Seuil d'alerte
+            alertes.append({
+                "id": s.id,
+                "titre": s.titre,
+                "categorie": s.categorie,
+                "likes": s.likes,
+                "score_ia": s.score_ia,
+                "message": f"⚠️ '{s.titre}' a explosé avec {s.likes} likes en moins de 48h !"
+            })
+    
+    return {
+        "total_alertes": len(alertes),
+        "alertes": alertes
+    }
