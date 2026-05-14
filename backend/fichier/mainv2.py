@@ -441,23 +441,44 @@ def get_referentiels():
 
 @app.post("/register", tags=["Auth"])
 async def register(
-    username:     str           = Form(...),   # matricule AFI
-    password:     str           = Form(...),   # mot de passe
-    prenom:       str           = Form(...),
-    nom:          str           = Form(...),
-    email:        Optional[str] = Form(None),
-    filiere:      Optional[str] = Form(None),
-    niveau:       Optional[str] = Form(None),
-    classe:       Optional[str] = Form(None),  # ignoré — généré automatiquement
+    # Accepte JSON body (UserRegister), form-urlencoded ou query params
+    request: Request = None,
+    username:     str           = None,   # form/query field (matricule)
+    password:     str           = None,   # form/query field
+    prenom:       str           = None,
+    nom:          str           = None,
+    email:        Optional[str] = None,
+    filiere:      Optional[str] = None,
+    niveau:       Optional[str] = None,
+    classe:       Optional[str] = None,   # ignoré — généré automatiquement
     db: Session = Depends(get_db),
 ):
     """
-    Créer un compte étudiant via application/x-www-form-urlencoded.
-    Champs : username (matricule), password, prenom, nom, email, filiere, niveau.
+    Créer un compte étudiant. Accepte JSON body (matricule/mot_de_passe),
+    x-www-form-urlencoded ou query params.
     La classe est générée automatiquement (filière + niveau).
     """
-    matricule = (username or "").strip().upper()
-    pw        = password or ""
+    # Lire le body JSON si le content-type est application/json
+    _body_data = {}
+    if request is not None:
+        ct = request.headers.get("content-type", "")
+        if "application/json" in ct:
+            try:
+                _body_data = await request.json()
+            except Exception:
+                _body_data = {}
+
+    # Priorité : query/form param > JSON body
+    _mat_raw = username or _body_data.get("matricule", "") or ""
+    _pw_raw  = password  or _body_data.get("mot_de_passe", "") or ""
+    prenom   = prenom   or _body_data.get("prenom")
+    nom      = nom      or _body_data.get("nom")
+    email    = email    or _body_data.get("email")
+    filiere  = filiere  or _body_data.get("filiere")
+    niveau   = niveau   or _body_data.get("niveau")
+
+    matricule = _mat_raw.strip().upper()
+    pw        = _pw_raw
     if not matricule or not pw:
         raise HTTPException(400, "Matricule et mot de passe obligatoires")
     if not re.match(r'^[A-Z0-9]{4,20}$', matricule):
@@ -1665,9 +1686,9 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
 @app.post("/planning/upload", tags=["Planning"])
 async def upload_planning(
     fichier:   UploadFile = File(...),
-    filiere:   str = Form("SRT"),
-    niveau:    str = Form("M2"),
-    semestre:  str = Form("S1"),
+    filiere:   str = "SRT",
+    niveau:    str = "M2",
+    semestre:  str = "S1",
     u: User = Depends(require_admin), db: Session = Depends(get_db),
 ):
     """Téléverser le planning Excel d'une classe. L'IA lit le fichier et crée les séances."""
@@ -1725,7 +1746,6 @@ def get_planning_calendrier(
     }
 
 
-@app.get("/planning/classes", tags=["Planning"])
 def get_classes_planning(db: Session = Depends(get_db)):
     """Retourne toutes les classes ayant un planning."""
     classes = db.query(Seance.classe).distinct().order_by(Seance.classe).all()

@@ -6,7 +6,7 @@ Auteurs :
 Hackathon AFI-TECH 2026
 """
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -122,14 +122,12 @@ class SalleCreate(BaseModel):
     capacite: int = 30
 
 class SeanceUpdate(BaseModel):
-    classe:  Optional[str]   = None   # ex: M1-SRT — sélection de classe
     ue:      Optional[str]   = None
     module:  Optional[str]   = None
     prof:    Optional[str]   = None
     date:    Optional[str]   = None
     heure:   Optional[str]   = None
     duree:   Optional[float] = None
-    salle_id: Optional[int]  = None   # ID de la salle (sélection depuis /salles)
     statut:  Optional[str]   = None   # programme|annule|reporte|en_ligne
     note:    Optional[str]   = None   # motif / info
 
@@ -440,22 +438,24 @@ def get_referentiels():
     }
 
 @app.post("/register", tags=["Auth"])
-async def register(
-    username:     str           = Form(...),   # matricule AFI
-    password:     str           = Form(...),   # mot de passe
-    prenom:       str           = Form(...),
-    nom:          str           = Form(...),
-    email:        Optional[str] = Form(None),
-    filiere:      Optional[str] = Form(None),
-    niveau:       Optional[str] = Form(None),
-    classe:       Optional[str] = Form(None),  # ignoré — généré automatiquement
+def register(
+    # Accepte aussi bien JSON (UserRegister) que form-urlencoded envoyé par le frontend
+    # username = matricule (convention OAuth2 réutilisée pour la compatibilité)
+    username:     str           = None,   # form field (matricule)
+    password:     str           = None,   # form field
+    prenom:       str           = None,
+    nom:          str           = None,
+    email:        Optional[str] = None,
+    filiere:      Optional[str] = None,
+    niveau:       Optional[str] = None,
+    classe:       Optional[str] = None,   # ignoré — généré automatiquement
     db: Session = Depends(get_db),
 ):
     """
-    Créer un compte étudiant via application/x-www-form-urlencoded.
-    Champs : username (matricule), password, prenom, nom, email, filiere, niveau.
-    La classe est générée automatiquement (filière + niveau).
+    Créer un compte étudiant. Accepte x-www-form-urlencoded ou query params.
+    username = matricule AFI. La classe est générée automatiquement (filière + niveau).
     """
+    from fastapi import Form as _Form
     matricule = (username or "").strip().upper()
     pw        = password or ""
     if not matricule or not pw:
@@ -545,14 +545,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     return {"access_token": create_access_token({"sub": user.matricule}), "token_type": "bearer"}
 
 @app.get("/me", tags=["Auth"])
-def get_me(u: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    nb_signalements = db.query(Signalement).filter(Signalement.user_id == u.id).count()
-    nb_notes        = db.query(Note).filter(Note.user_id == u.id).count()
-    notes_obj       = db.query(Note).filter(Note.user_id == u.id).all()
-    moyenne         = round(sum(n.note for n in notes_obj) / len(notes_obj), 2) if notes_obj else None
+def get_me(u: User = Depends(get_current_active_user)):
     return {
         "id": u.id, "matricule": u.matricule, "nom": u.nom, "prenom": u.prenom,
-        "email": u.email,
         "role": u.role, "suspendu": u.suspendu,
         "filiere_code":  u.filiere,
         "filiere_label": FILIERES.get(u.filiere, u.filiere) if u.filiere else None,
@@ -560,37 +555,10 @@ def get_me(u: User = Depends(get_current_active_user), db: Session = Depends(get
         "niveau_label":  NIVEAUX.get(u.niveau, u.niveau) if u.niveau else None,
         "classe":        u.classe,
         "photo_url":     u.photo_url,
+        "email":         u.email,
         "xp":            u.xp or 0,
         "badges":        [b for b in (u.badges or "").split(",") if b],
-        # Statistiques
-        "nb_signalements": nb_signalements,
-        "nb_notes":        nb_notes,
-        "moyenne_generale": moyenne,
-        "created_at":    u.created_at.isoformat() if u.created_at else None,
     }
-
-@app.post("/me/photo", tags=["Auth"])
-async def upload_photo_profil(
-    photo: UploadFile = File(...),
-    u: User = Depends(get_current_active_user), db: Session = Depends(get_db),
-):
-    """
-    Téléverser une photo de profil. Formats acceptés : image/jpeg, image/png, image/webp.
-    Taille max : 5 Mo. La photo est stockée en base64 en base de données.
-    """
-    import base64
-    MIMES_IMAGES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-    if photo.content_type not in MIMES_IMAGES:
-        raise HTTPException(400, f"Format non supporté. Formats acceptés : {MIMES_IMAGES}")
-    data = await photo.read()
-    if len(data) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Photo trop lourde (max 5 Mo)")
-    b64 = base64.b64encode(data).decode()
-    # Stocker comme data URI pour affichage direct
-    u.photo_url = f"data:{photo.content_type};base64,{b64}"
-    db.commit()
-    return {"message": "Photo de profil mise à jour ✅", "photo_url": u.photo_url[:80] + "…"}
-
 
 @app.patch("/me", tags=["Auth"])
 def update_profile(
@@ -761,27 +729,24 @@ def get_signalements(
         pass
 
     role = current_user.role if current_user else None
-    est_admin = role in ROLES_ADMIN   # Fix 8: tous les admins voient tout, pas seulement admin_general
+    est_admin = role in ROLES_VOIR_ANONYME
 
     q = db.query(Signalement)
     if categorie: q = q.filter(Signalement.categorie == categorie)
     if statut:    q = q.filter(Signalement.statut == statut)
 
-    # Fix 8 — Filtrage par visibilité :
-    # - admin/admin_general : voit TOUT (y compris visibilite="admin")
-    # - étudiant connecté : voit "tous" + "filiere" (si même filière) + ses propres
-    #   MAIS PAS "admin" sauf si c'est lui-même l'auteur
-    # - non connecté : uniquement "tous"
+    # Filtrage par visibilité
     if est_admin:
         pass  # Les admins voient tout
     elif current_user:
+        # Étudiant connecté : voit "tous" + sa propre filière + pas "admin seul"
         from sqlalchemy import or_
         q = q.filter(or_(
             Signalement.visibilite == "tous",
-            Signalement.user_id == current_user.id,  # toujours voir les siens
-            # "filiere" : filtré en post-traitement ci-dessous
-            Signalement.visibilite == "filiere",
+            Signalement.visibilite == "filiere",   # filtré ci-dessous si filière connue
+            Signalement.user_id == current_user.id  # toujours voir ses propres
         ))
+        # Affiner : si visibilite=filiere, ne montrer que si même filière
         sigs_raw = q.order_by(Signalement.score_ia.desc()).all()
         sigs = []
         for s in sigs_raw:
@@ -798,13 +763,12 @@ def get_signalements(
         q = q.filter(Signalement.visibilite == "tous")
         sigs = q.order_by(Signalement.score_ia.desc()).all()
 
-    if est_admin:
-        sigs = q.order_by(Signalement.score_ia.desc()).all()
+    if est_admin or not current_user:
+        sigs = q.order_by(Signalement.score_ia.desc()).all() if est_admin else sigs
 
     def _fmt(s: Signalement):
         auteur_visible = est_admin or (current_user and s.user_id == current_user.id)
         auteur = db.query(User).filter(User.id == s.user_id).first() if auteur_visible or not s.anonyme else None
-        nb_comm = db.query(Commentaire).filter(Commentaire.signalement_id == s.id).count()
         return {
             "id": s.id, "titre": s.titre, "description": s.description,
             "categorie": s.categorie, "statut": s.statut, "likes": s.likes,
@@ -817,7 +781,6 @@ def get_signalements(
             "niveau_urgence": s.niveau_urgence, "categorie_auto": s.categorie_auto,
             "decision_strategique": s.decision_strategique if est_admin else None,
             "action_concrete": s.action_concrete if est_admin else None,
-            "nb_commentaires": nb_comm,
             "created_at": s.created_at.isoformat(),
         }
 
@@ -919,59 +882,11 @@ def add_commentaire(
     s.score_ia = _score_ia(s.likes, s.created_at, s.score_emotionnel or 0, nb)
     db.commit()
     _xp(u, 2, db)
-    return {
-        "id": c.id,
-        "contenu": c.contenu,
-        "created_at": c.created_at.isoformat(),
-        "auteur": {
-            "id":       u.id,
-            "matricule": u.matricule,
-            "prenom":   u.prenom,
-            "nom":      u.nom,
-            "photo_url": u.photo_url,
-            "classe":   u.classe,
-        },
-        "signalement_id": id,
-        "nb_commentaires": nb,
-    }
+    return c
 
 @app.get("/signalements/{id}/commentaires", tags=["Commentaires"])
 def get_commentaires(id: int, db: Session = Depends(get_db)):
-    """Retourne les commentaires d'un signalement avec les infos auteur (style réseau social)."""
-    comms = db.query(Commentaire).filter(Commentaire.signalement_id == id)\
-              .order_by(Commentaire.created_at.asc()).all()
-    result = []
-    for c in comms:
-        auteur = db.query(User).filter(User.id == c.user_id).first()
-        result.append({
-            "id":         c.id,
-            "contenu":    c.contenu,
-            "created_at": c.created_at.isoformat(),
-            "auteur": {
-                "id":       auteur.id       if auteur else None,
-                "matricule": auteur.matricule if auteur else None,
-                "prenom":   auteur.prenom   if auteur else "Inconnu",
-                "nom":      auteur.nom      if auteur else "",
-                "photo_url": auteur.photo_url if auteur else None,
-                "classe":   auteur.classe   if auteur else None,
-            },
-        })
-    return {"total": len(result), "commentaires": result}
-
-@app.delete("/signalements/{sig_id}/commentaires/{comm_id}", tags=["Commentaires"])
-def delete_commentaire(
-    sig_id: int, comm_id: int,
-    u: User = Depends(get_current_active_user), db: Session = Depends(get_db),
-):
-    """Supprimer un commentaire (auteur du commentaire ou admin)."""
-    c = db.query(Commentaire).filter(
-        Commentaire.id == comm_id, Commentaire.signalement_id == sig_id
-    ).first()
-    if not c: raise HTTPException(404, "Commentaire introuvable")
-    if c.user_id != u.id and u.role not in ROLES_ADMIN:
-        raise HTTPException(403, "Vous ne pouvez supprimer que vos propres commentaires")
-    db.delete(c); db.commit()
-    return {"message": "Commentaire supprimé ✅"}
+    return db.query(Commentaire).filter(Commentaire.signalement_id == id).all()
 
 @app.post("/signalements/{id}/satisfaction", tags=["Signalements"])
 def add_satisfaction(
@@ -1081,65 +996,6 @@ class NoteCreateAdmin(BaseModel):
     semestre:             str
     user_id:              Optional[int]  = None   # ID de l'étudiant cible
     matricule_etudiant:   Optional[str]  = None   # Matricule de l'étudiant cible (alternative)
-
-@app.get("/notes/etudiants", tags=["Notes"])
-def get_etudiants_par_filiere(
-    filiere: Optional[str] = None,
-    classe:  Optional[str] = None,
-    u: User = Depends(require_admin), db: Session = Depends(get_db),
-):
-    """
-    Lister les étudiants filtrés par filière ou classe. Réservé aux admins.
-    Workflow admin pour ajouter des notes :
-      1. GET /notes/etudiants?filiere=SRT  → liste les étudiants de la filière SRT
-      2. GET /notes/etudiants?classe=M1-SRT → liste les étudiants de la classe M1-SRT
-      3. POST /notes avec user_id de l'étudiant sélectionné
-    """
-    q = db.query(User).filter(User.role == "etudiant", User.suspendu == False)
-    if filiere:
-        fc = filiere.strip().upper()
-        q = q.filter(User.filiere == fc)
-    if classe:
-        q = q.filter(User.classe == classe)
-    etudiants = q.order_by(User.nom, User.prenom).all()
-    return [
-        {
-            "id":       e.id,
-            "matricule": e.matricule,
-            "nom":      e.nom,
-            "prenom":   e.prenom,
-            "filiere":  e.filiere,
-            "filiere_label": FILIERES.get(e.filiere, e.filiere) if e.filiere else None,
-            "niveau":   e.niveau,
-            "classe":   e.classe,
-        }
-        for e in etudiants
-    ]
-
-@app.get("/notes/filieres", tags=["Notes"])
-def get_filieres_avec_etudiants(u: User = Depends(require_admin), db: Session = Depends(get_db)):
-    """
-    Retourne les filières qui ont des étudiants, avec le nombre d'étudiants par classe.
-    Sert à alimenter le sélecteur filière → classe → étudiant dans l'interface admin de notes.
-    """
-    from sqlalchemy import func as sa_func
-    rows = (
-        db.query(User.filiere, User.classe, sa_func.count(User.id).label("nb"))
-        .filter(User.role == "etudiant", User.suspendu == False, User.filiere != None)
-        .group_by(User.filiere, User.classe)
-        .order_by(User.filiere, User.classe)
-        .all()
-    )
-    result = {}
-    for filiere, classe, nb in rows:
-        if filiere not in result:
-            result[filiere] = {
-                "code":  filiere,
-                "label": FILIERES.get(filiere, filiere),
-                "classes": [],
-            }
-        result[filiere]["classes"].append({"classe": classe, "nb_etudiants": nb})
-    return list(result.values())
 
 @app.post("/notes", tags=["Notes"])
 def create_note(data: NoteCreateAdmin, u: User = Depends(require_admin), db: Session = Depends(get_db)):
@@ -1286,34 +1142,8 @@ def get_statistiques(u: User = Depends(require_admin_general), db: Session = Dep
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 @app.get("/export/pdf", tags=["Export"])
-async def export_pdf(
-    token: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
-    """
-    Rapport HTML imprimable (Ctrl+P → Enregistrer en PDF dans le navigateur).
-    Accepte le token JWT soit en Bearer header soit en query param ?token=...
-    (window.open ne peut pas envoyer de header Authorization, d'où le query param).
-    """
-    # Résoudre l'utilisateur depuis le query param ou le header Authorization
-    from fastapi import Request
-    # On vérifie manuellement le token
-    if not token:
-        raise HTTPException(401, "Token manquant — passez ?token=<votre_jwt> dans l'URL")
-    try:
-        payload   = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        matricule = payload.get("sub")
-        if not matricule:
-            raise HTTPException(401, "Token invalide")
-        u = db.query(User).filter(User.matricule == matricule).first()
-        if not u:
-            raise HTTPException(401, "Utilisateur introuvable")
-        if u.suspendu:
-            raise HTTPException(403, "Compte suspendu")
-        if u.role not in ROLES_DASHBOARD:
-            raise HTTPException(403, "Accès réservé à l'administrateur général")
-    except JWTError:
-        raise HTTPException(401, "Token invalide")
+async def export_pdf(u: User = Depends(require_admin_general), db: Session = Depends(get_db)):
+    """Rapport HTML imprimable (Ctrl+P → Enregistrer en PDF dans le navigateur)."""
     sigs    = db.query(Signalement).order_by(Signalement.score_ia.desc()).all()
     total   = len(sigs)
     resolus = sum(1 for s in sigs if s.statut == "resolu")
@@ -1389,52 +1219,12 @@ def list_users(role: Optional[str] = None, u: User = Depends(require_admin_gener
     q = db.query(User)
     if role: q = q.filter(User.role == role)
     users = q.order_by(User.created_at.desc()).all()
-    return [{
-        "id":            us.id,
-        "matricule":     us.matricule,
-        "nom":           us.nom,
-        "prenom":        us.prenom,
-        "email":         us.email,
-        "role":          us.role,
-        "filiere":       us.filiere,
-        "filiere_label": FILIERES.get(us.filiere, us.filiere) if us.filiere else None,
-        "niveau":        us.niveau,
-        "niveau_label":  NIVEAUX.get(us.niveau, us.niveau) if us.niveau else None,
-        "classe":        us.classe,
-        "photo_url":     us.photo_url,
-        "suspendu":      us.suspendu,
-        "xp":            us.xp or 0,
-        "badges":        [b for b in (us.badges or "").split(",") if b],
-        "created_at":    us.created_at.isoformat() if us.created_at else None,
-    } for us in users]
+    return [{"id": us.id, "matricule": us.matricule, "nom": us.nom, "prenom": us.prenom,
+             "email": us.email, "role": us.role, "filiere": us.filiere, "niveau": us.niveau,
+             "classe": us.classe, "suspendu": us.suspendu, "xp": us.xp or 0,
+             "created_at": us.created_at.isoformat() if us.created_at else None} for us in users]
 
-@app.post("/users/{user_id}/photo", tags=["Gestion Users"])
-async def admin_upload_photo_user(
-    user_id: int,
-    photo: UploadFile = File(...),
-    u: User = Depends(require_admin), db: Session = Depends(get_db),
-):
-    """
-    Téléverser ou remplacer la photo de profil d'un utilisateur (admin).
-    Formats acceptés : image/jpeg, image/png, image/webp. Taille max : 5 Mo.
-    """
-    import base64
-    cible = db.query(User).filter(User.id == user_id).first()
-    if not cible:
-        raise HTTPException(404, "Utilisateur introuvable")
-    MIMES_IMAGES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-    if photo.content_type not in MIMES_IMAGES:
-        raise HTTPException(400, f"Format non supporté. Formats acceptés : {MIMES_IMAGES}")
-    data = await photo.read()
-    if len(data) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Photo trop lourde (max 5 Mo)")
-    b64 = base64.b64encode(data).decode()
-    cible.photo_url = f"data:{photo.content_type};base64,{b64}"
-    db.commit()
-    return {"message": f"Photo de profil de {cible.prenom} {cible.nom} mise à jour ✅",
-            "photo_url": cible.photo_url[:80] + "…"}
-
-
+@app.patch("/users/{user_id}/role", tags=["Gestion Users"])
 def update_user_role(user_id: int, data: RoleUpdate, u: User = Depends(require_admin_general), db: Session = Depends(get_db)):
     if data.role not in {"etudiant", "admin", "admin_general"}:
         raise HTTPException(400, "Rôle invalide")
@@ -1502,10 +1292,7 @@ def delete_salle(salle_id: int, u: User = Depends(require_admin), db: Session = 
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, semestre: str, db: Session) -> dict:
-    """Lit le fichier Excel via openpyxl et structure les séances.
-    Détecte automatiquement les colonnes quelle que soit leur disposition.
-    Utilise Groq en dernier recours si la détection locale échoue.
-    """
+    """Lit le fichier Excel via openpyxl et structure les séances."""
     import io
     try:
         import openpyxl
@@ -1516,126 +1303,58 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
     ws   = wb.active
     rows = list(ws.iter_rows(values_only=True))
 
-    # Nettoyer les lignes vides au début
-    rows = [r for r in rows if any(c for c in r if c is not None and str(c).strip() != "")]
-
-    if not rows:
-        return {"seances_importees": 0, "classe": _gen_classe(filiere, niveau), "semestre": semestre,
-                "debug": "Fichier Excel vide"}
-
-    # ── Détecter la ligne d'en-tête (cherche des mots-clés de planning) ──────
-    HEADER_KEYWORDS = [
-        "module","matiere","cours","ue","unite","prof","enseignant","intervenant",
-        "formateur","heure","volume","date","jour","salle","local","amphi",
-        "semestre","filiere","classe","duree"
-    ]
+    # Détecter la ligne d'en-tête (cherche "module" ou "ue" ou "prof")
     header_idx = 0
-    best_score = 0
-    for i, row in enumerate(rows[:15]):
-        row_lower = [str(c).lower().strip() if c else "" for c in row]
-        score = sum(1 for cell in row_lower for kw in HEADER_KEYWORDS if kw in cell)
-        if score > best_score:
-            best_score = score
-            header_idx = i
+    for i, row in enumerate(rows[:10]):
+        row_lower = [str(c).lower() if c else "" for c in row]
+        if any(k in " ".join(row_lower) for k in ["module","matiere","prof","enseignant","heure"]):
+            header_idx = i; break
 
     headers = [str(c).lower().strip() if c else "" for c in rows[header_idx]]
 
-    def _col(*keys):
-        """Trouve l'index de la première colonne correspondant à l'un des mots-clés."""
+    def _col(keys):
         for k in keys:
             for i, h in enumerate(headers):
-                if k in h:
-                    return i
+                if k in h: return i
         return None
 
-    i_ue     = _col("ue", "unite", "intitule", "code_ue")
-    i_module = _col("module", "matiere", "cours", "libelle", "designation")
-    i_prof   = _col("prof", "enseignant", "intervenant", "formateur", "charge",
-                    "nom_prof", "nom_enseignant", "teacher", "instructeur", "nom_interv",
-                    "responsable", "titulaire", "charg")
-    i_heures = _col("h_prev", "nb_h", "volume", "credit", "vh", "nb_heure", "nbre_h",
-                    "heures_prev", "heures_total", "total_h", "quota")
-    i_date   = _col("date", "jour", "programme", "calendrier", "seance")
-    i_heure  = _col("horaire", "heure_debut", "debut", "tranche", "heure_cours")
-    i_salle  = _col("salle", "local", "amphi", "lieu")
-    i_duree  = _col("duree", "duree_h")
+    i_ue     = _col(["ue","unite","intitule"])
+    i_module = _col(["module","matiere","cours"])
+    i_prof   = _col(["prof","enseignant","intervenant","formateur"])
+    i_heures = _col(["heure","volume","h_prevue","nombre"])
+    i_date   = _col(["date","jour","programmation"])
+    i_salle  = _col(["salle","local","amphi"])
 
     classe = _gen_classe(filiere, niveau)
+
+    # Dispatcher les salles disponibles automatiquement selon capacité
     salles_dispo = db.query(Salle).filter(Salle.active == True).order_by(Salle.capacite).all()
 
     seances_creees = 0
-    errors = []
+    for row in rows[header_idx + 1:]:
+        if not any(row): continue
+        def _val(idx): return str(row[idx]).strip() if idx is not None and idx < len(row) and row[idx] else None
 
-    data_rows = rows[header_idx + 1:]
+        ue_val     = _val(i_ue)     or _val(i_module) or "—"
+        module_val = _val(i_module) or ue_val
+        prof_val   = _val(i_prof)
+        heures_val = float(_val(i_heures) or 0) if _val(i_heures) else 0.0
+        date_val   = _val(i_date)
+        salle_val  = _val(i_salle)
 
-    # Si aucune colonne module/UE détectée, tenter une lecture positionnelle (premier col = UE, 2e = prof, ...)
-    fallback_mode = (i_ue is None and i_module is None)
+        if ue_val == "—" and not prof_val: continue
 
-    for row_idx, row in enumerate(data_rows):
-        if not any(row):
-            continue
-
-        def _val(idx):
-            if idx is None or idx >= len(row):
-                return None
-            v = row[idx]
-            return str(v).strip() if v is not None and str(v).strip() not in ("None", "", "—", "-") else None
-
-        if fallback_mode:
-            # Mode positionnel : col0=UE/module, col1=prof, col2=heures
-            non_none = [c for c in row if c is not None and str(c).strip() not in ("", "None", "—")]
-            ue_val     = str(non_none[0]).strip() if len(non_none) > 0 else None
-            module_val = str(non_none[1]).strip() if len(non_none) > 1 else ue_val
-            # Chercher le prof : si col2 ressemble à un nom (lettres, pas un chiffre), l'utiliser
-            _col2 = str(non_none[2]).strip() if len(non_none) > 2 else None
-            _col3 = str(non_none[3]).strip() if len(non_none) > 3 else None
-            if _col2 and not re.match(r'^\d', _col2):
-                prof_val   = _col2
-                heures_str = _col3 or "0"
-            else:
-                prof_val   = None
-                heures_str = _col2 or "0"
-        else:
-            ue_val     = _val(i_ue)     or _val(i_module) or "—"
-            module_val = _val(i_module) or ue_val
-            prof_val   = _val(i_prof)
-            heures_str = _val(i_heures) or "0"
-
-        # Ignorer les lignes totalement vides ou récapitulatives
-        if not ue_val or ue_val in ("—", "Total", "TOTAL", "Sous-total"):
-            continue
-        if ue_val == "—" and not prof_val:
-            continue
-
-        # Parser les heures (peut être "30h", "30 h", "30.0", 30)
-        heures_val = 0.0
-        try:
-            heures_clean = re.sub(r'[^\d.,]', '', str(heures_str)).replace(',', '.')
-            heures_val = float(heures_clean) if heures_clean else 0.0
-        except Exception:
-            heures_val = 0.0
-
-        date_val  = _val(i_date)
-        heure_val = _val(i_heure)
-        duree_val = 3.0   # durée par défaut : 17h30→20h45 = 3h15 – 15min pause = 3h nettes
-        if i_duree is not None:
-            try:
-                duree_val = float(re.sub(r'[^\d.,]', '', str(_val(i_duree) or "3")).replace(',', '.') or 3)
-            except Exception:
-                duree_val = 3.0
-
-        # Trouver la salle
+        # Trouver la salle : d'abord celle mentionnée dans le fichier, sinon auto
         salle_obj = None
-        salle_str = _val(i_salle)
-        if salle_str:
-            salle_obj = db.query(Salle).filter(Salle.nom.ilike(f"%{salle_str}%")).first()
+        if salle_val:
+            salle_obj = db.query(Salle).filter(Salle.nom.ilike(f"%{salle_val}%")).first()
         if not salle_obj and salles_dispo:
-            salle_obj = salles_dispo[0]
+            salle_obj = salles_dispo[0]  # plus petite salle disponible
 
         seance = Seance(
             classe=classe, filiere=filiere, niveau=niveau, semestre=semestre,
             ue=ue_val, module=module_val, prof=prof_val,
-            date=date_val, heure=heure_val, heures_prevues=heures_val, duree=duree_val,
+            date=date_val, heures_prevues=heures_val, duree=3.0,
             salle_id=salle_obj.id if salle_obj else None,
             statut="programme",
         )
@@ -1643,31 +1362,14 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
         seances_creees += 1
 
     db.commit()
-
-    debug_info = {
-        "header_row_idx": header_idx,
-        "headers_detected": headers,
-        "colonnes": {
-            "ue": i_ue, "module": i_module, "prof": i_prof,
-            "heures": i_heures, "date": i_date, "salle": i_salle,
-        },
-        "total_data_rows": len(data_rows),
-        "fallback_mode": fallback_mode,
-    }
-
-    return {
-        "seances_importees": seances_creees,
-        "classe": classe,
-        "semestre": semestre,
-        "debug": debug_info,
-    }
+    return {"seances_importees": seances_creees, "classe": classe, "semestre": semestre}
 
 @app.post("/planning/upload", tags=["Planning"])
 async def upload_planning(
     fichier:   UploadFile = File(...),
-    filiere:   str = Form("SRT"),
-    niveau:    str = Form("M2"),
-    semestre:  str = Form("S1"),
+    filiere:   str = "SRT",
+    niveau:    str = "M2",
+    semestre:  str = "S1",
     u: User = Depends(require_admin), db: Session = Depends(get_db),
 ):
     """Téléverser le planning Excel d'une classe. L'IA lit le fichier et crée les séances."""
@@ -1680,50 +1382,6 @@ async def upload_planning(
     contenu = await fichier.read()
     result  = await _ia_lire_planning_excel(contenu, filiere, niveau, semestre, db)
     return {"message": f"Planning importé ✅", **result}
-
-@app.get("/planning/calendrier", tags=["Planning"])
-def get_planning_calendrier(
-    salle_id:  int,
-    semestre:  Optional[str] = None,
-    date_debut: Optional[str] = None,
-    date_fin:   Optional[str] = None,
-    u: User = Depends(require_admin), db: Session = Depends(get_db),
-):
-    """
-    Planning sous forme de calendrier pour une salle donnée (admin).
-    Paramètres :
-      - salle_id  : ID de la salle (obligatoire) — récupérer via GET /salles
-      - semestre  : S1 | S2 (optionnel)
-      - date_debut / date_fin : filtrer sur une plage (format YYYY-MM-DD, optionnel)
-    Retourne les séances groupées par date pour un affichage calendrier.
-    """
-    salle = db.query(Salle).filter(Salle.id == salle_id, Salle.active == True).first()
-    if not salle:
-        raise HTTPException(404, f"Salle #{salle_id} introuvable ou inactive")
-
-    q = db.query(Seance).filter(Seance.salle_id == salle_id)
-    if semestre:    q = q.filter(Seance.semestre == semestre)
-    if date_debut:  q = q.filter(Seance.date >= date_debut)
-    if date_fin:    q = q.filter(Seance.date <= date_fin)
-    seances = q.order_by(Seance.date, Seance.heure).all()
-
-    # Grouper par date pour le rendu calendrier
-    calendrier: dict = {}
-    for s in seances:
-        jour = s.date or "sans_date"
-        if jour not in calendrier:
-            calendrier[jour] = []
-        calendrier[jour].append(_fmt_seance(s))
-
-    return {
-        "salle": {"id": salle.id, "nom": salle.nom, "site": salle.site, "capacite": salle.capacite},
-        "total_seances": len(seances),
-        "calendrier": [
-            {"date": jour, "seances": seances_jour}
-            for jour, seances_jour in sorted(calendrier.items())
-        ],
-    }
-
 
 @app.get("/planning/classes", tags=["Planning"])
 def get_classes_planning(db: Session = Depends(get_db)):
@@ -1795,7 +1453,6 @@ def update_seance(
     s = db.query(Seance).filter(Seance.id == seance_id).first()
     if not s: raise HTTPException(404, "Séance introuvable")
 
-    if data.classe  is not None: s.classe  = data.classe
     if data.ue      is not None: s.ue      = data.ue
     if data.module  is not None: s.module  = data.module
     if data.prof    is not None: s.prof    = data.prof
@@ -1803,11 +1460,6 @@ def update_seance(
     if data.heure   is not None: s.heure   = data.heure
     if data.duree   is not None: s.duree   = data.duree
     if data.note    is not None: s.note    = data.note
-    if data.salle_id is not None:
-        salle = db.query(Salle).filter(Salle.id == data.salle_id, Salle.active == True).first()
-        if not salle:
-            raise HTTPException(404, f"Salle #{data.salle_id} introuvable ou inactive")
-        s.salle_id = data.salle_id
     if data.statut  is not None:
         statuts_valides = {"programme", "annule", "reporte", "en_ligne"}
         if data.statut not in statuts_valides:
@@ -1858,11 +1510,11 @@ EMOJIS_VALIDES = {"👍","❤️","😂","😮","😢","👏","🔥","👀"}
 
 @app.post("/infos", tags=["Infos"])
 async def publier_info(
-    titre:          str = Form(...),
-    description:    Optional[str] = Form(None),
-    lien:           Optional[str] = Form(None),
-    date_evenement: Optional[str] = Form(None),
-    cible:          str = Form("tous"),
+    titre:          str = None,
+    description:    Optional[str] = None,
+    lien:           Optional[str] = None,
+    date_evenement: Optional[str] = None,
+    cible:          str = "tous",
     image:          Optional[UploadFile] = File(None),
     video:          Optional[UploadFile] = File(None),
     u: User = Depends(require_admin), db: Session = Depends(get_db),

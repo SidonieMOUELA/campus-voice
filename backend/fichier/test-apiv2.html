@@ -711,28 +711,6 @@
     <div id="planning-display" style="font-size:12px;color:#4a6080">Connecte-toi pour voir ton planning.</div>
   </div>
 
-  <!-- ADMIN : Calendrier par salle -->
-  <div class="card" style="border-color:#1d4a6e">
-    <div class="rb rget" style="background:#0c2d4a;color:#67e8f9">GET /planning/calendrier — Admin</div>
-    <p class="hint">Afficher le planning d'une salle sous forme de calendrier. Choisissez la salle puis cliquez sur Charger.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-bottom:9px">
-      <select id="cal-salle" onchange="loadCalendrier()">
-        <option value="">— Sélectionner une salle</option>
-      </select>
-      <select id="cal-semestre">
-        <option value="">— Tous les semestres</option>
-        <option value="S1">Semestre 1</option>
-        <option value="S2">Semestre 2</option>
-      </select>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-bottom:9px">
-      <input id="cal-debut" type="date" placeholder="Date début (optionnel)"/>
-      <input id="cal-fin" type="date" placeholder="Date fin (optionnel)"/>
-    </div>
-    <button class="btn-sm" style="margin-bottom:9px" onclick="loadCalendrier()">📅 Charger le calendrier</button>
-    <div id="cal-display" style="font-size:11px;color:#4a6080"></div>
-  </div>
-
   <div class="response" id="planning-resp"></div>
 </div>
 
@@ -1387,7 +1365,7 @@ async function listSalles(){
     const r=await fetch(BASE+'/salles',{headers:token?{Authorization:'Bearer '+token}:{}});
     const d=await r.json();
     const el=document.getElementById('salles-list');
-    // Peupler le select de modification de séance
+    // Peupler aussi le select de modification de séance
     const selSalle=document.getElementById('mod-salle');
     if(selSalle){
       selSalle.innerHTML='<option value="">— Salle (inchangée)</option>';
@@ -1396,17 +1374,6 @@ async function listSalles(){
         opt.value=s.id;
         opt.textContent=`[${s.site}] ${s.nom} (${s.capacite}p)`;
         selSalle.appendChild(opt);
-      });
-    }
-    // Peupler aussi le select du calendrier par salle
-    const selCal=document.getElementById('cal-salle');
-    if(selCal){
-      selCal.innerHTML='<option value="">— Sélectionner une salle</option>';
-      if(Array.isArray(d)) d.forEach(s=>{
-        const opt=document.createElement('option');
-        opt.value=s.id;
-        opt.textContent=`[${s.site}] ${s.nom} (${s.capacite}p)`;
-        selCal.appendChild(opt);
       });
     }
     if(!Array.isArray(d)||!d.length){el.textContent='Aucune salle enregistrée.';return;}
@@ -1531,53 +1498,6 @@ async function loadClassesSelect(){
     const sel=document.getElementById('pl-classe-mod');
     sel.innerHTML='<option value="">— Sélectionner une classe</option>'+d.map(c=>`<option value="${c}">${c}</option>`).join('');
   }catch{}
-}
-
-// Calendrier par salle (admin)
-async function loadCalendrier(){
-  if(!token){document.getElementById('cal-display').innerHTML='<span style="color:#fbbf24">Connecte-toi d\'abord.</span>';return;}
-  const salleId=document.getElementById('cal-salle').value;
-  if(!salleId){document.getElementById('cal-display').innerHTML='<span style="color:#fbbf24">Sélectionne une salle.</span>';return;}
-  const semestre=document.getElementById('cal-semestre').value;
-  const debut=document.getElementById('cal-debut').value;
-  const fin=document.getElementById('cal-fin').value;
-  let url=`${BASE}/planning/calendrier?salle_id=${salleId}`;
-  if(semestre) url+=`&semestre=${semestre}`;
-  if(debut) url+=`&date_debut=${debut}`;
-  if(fin) url+=`&date_fin=${fin}`;
-  document.getElementById('cal-display').innerHTML='<span style="color:#818cf8">⏳ Chargement...</span>';
-  try{
-    const r=await fetch(url,{headers:{Authorization:'Bearer '+token}});
-    const d=await r.json();
-    if(!r.ok){document.getElementById('cal-display').innerHTML=`<span style="color:#fbbf24">${d.detail||'Erreur'}</span>`;return;}
-    if(!d.calendrier||!d.calendrier.length){document.getElementById('cal-display').innerHTML='<span style="color:#4a6080">Aucune séance pour cette salle.</span>';return;}
-    const statColor={programme:'#22c55e',annule:'#ef4444',reporte:'#fbbf24',en_ligne:'#93c5fd'};
-    let html=`<div style="font-size:11px;color:#6b8ab0;margin-bottom:10px">🏫 <b style="color:#67e8f9">${d.salle.nom}</b> — ${d.salle.site} · ${d.total_seances} séance(s)</div>`;
-    d.calendrier.forEach(jour=>{
-      const joursNoms=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-      let dateLabel=jour.date;
-      if(jour.date&&jour.date!=='sans_date'){
-        const dt=new Date(jour.date+'T00:00:00');
-        dateLabel=`${joursNoms[dt.getDay()]} ${jour.date}`;
-      }
-      html+=`<div style="font-size:11px;font-weight:700;color:#a8c5e8;margin:12px 0 5px;padding-top:8px;border-top:1px solid #1e3a5f">📅 ${dateLabel} <span style="font-size:10px;color:#4a6080;font-weight:400">(${jour.seances.length} cours)</span></div>`;
-      jour.seances.forEach(s=>{
-        const sc=statColor[s.statut]||'#e2e8f0';
-        const annule=s.statut==='annule';
-        html+=`<div style="padding:7px 10px;background:#0d1f3c;border-radius:7px;margin-bottom:4px;border-left:3px solid ${sc};${annule?'opacity:.5;text-decoration:line-through':''}">
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:#e2e8f0;font-size:11px;font-weight:600">${s.ue||'—'} — ${s.module||'—'}</span>
-            <span style="color:${sc};font-size:10px">${s.statut}</span>
-          </div>
-          <div style="color:#4a6080;font-size:10px;margin-top:2px">
-            🕐 ${s.heure||'—'} · ${s.duree||''}h &nbsp;|&nbsp; 👨‍🏫 ${s.prof||'—'} &nbsp;|&nbsp; 🎓 ${s.classe||'—'}
-          </div>
-          ${s.note?`<div style="color:#fbbf24;font-size:10px;margin-top:2px">ℹ️ ${s.note}</div>`:''}
-        </div>`;
-      });
-    });
-    document.getElementById('cal-display').innerHTML=html;
-  }catch(e){document.getElementById('cal-display').innerHTML=`<span style="color:#e24b4a">Erreur : ${e.message}</span>`;}
 }
 
 // ─── INFOS ────────────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ Auteurs :
 Hackathon AFI-TECH 2026
 """
 
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -440,22 +440,24 @@ def get_referentiels():
     }
 
 @app.post("/register", tags=["Auth"])
-async def register(
-    username:     str           = Form(...),   # matricule AFI
-    password:     str           = Form(...),   # mot de passe
-    prenom:       str           = Form(...),
-    nom:          str           = Form(...),
-    email:        Optional[str] = Form(None),
-    filiere:      Optional[str] = Form(None),
-    niveau:       Optional[str] = Form(None),
-    classe:       Optional[str] = Form(None),  # ignoré — généré automatiquement
+def register(
+    # Accepte aussi bien JSON (UserRegister) que form-urlencoded envoyé par le frontend
+    # username = matricule (convention OAuth2 réutilisée pour la compatibilité)
+    username:     str           = None,   # form field (matricule)
+    password:     str           = None,   # form field
+    prenom:       str           = None,
+    nom:          str           = None,
+    email:        Optional[str] = None,
+    filiere:      Optional[str] = None,
+    niveau:       Optional[str] = None,
+    classe:       Optional[str] = None,   # ignoré — généré automatiquement
     db: Session = Depends(get_db),
 ):
     """
-    Créer un compte étudiant via application/x-www-form-urlencoded.
-    Champs : username (matricule), password, prenom, nom, email, filiere, niveau.
-    La classe est générée automatiquement (filière + niveau).
+    Créer un compte étudiant. Accepte x-www-form-urlencoded ou query params.
+    username = matricule AFI. La classe est générée automatiquement (filière + niveau).
     """
+    from fastapi import Form as _Form
     matricule = (username or "").strip().upper()
     pw        = password or ""
     if not matricule or not pw:
@@ -1389,52 +1391,12 @@ def list_users(role: Optional[str] = None, u: User = Depends(require_admin_gener
     q = db.query(User)
     if role: q = q.filter(User.role == role)
     users = q.order_by(User.created_at.desc()).all()
-    return [{
-        "id":            us.id,
-        "matricule":     us.matricule,
-        "nom":           us.nom,
-        "prenom":        us.prenom,
-        "email":         us.email,
-        "role":          us.role,
-        "filiere":       us.filiere,
-        "filiere_label": FILIERES.get(us.filiere, us.filiere) if us.filiere else None,
-        "niveau":        us.niveau,
-        "niveau_label":  NIVEAUX.get(us.niveau, us.niveau) if us.niveau else None,
-        "classe":        us.classe,
-        "photo_url":     us.photo_url,
-        "suspendu":      us.suspendu,
-        "xp":            us.xp or 0,
-        "badges":        [b for b in (us.badges or "").split(",") if b],
-        "created_at":    us.created_at.isoformat() if us.created_at else None,
-    } for us in users]
+    return [{"id": us.id, "matricule": us.matricule, "nom": us.nom, "prenom": us.prenom,
+             "email": us.email, "role": us.role, "filiere": us.filiere, "niveau": us.niveau,
+             "classe": us.classe, "suspendu": us.suspendu, "xp": us.xp or 0,
+             "created_at": us.created_at.isoformat() if us.created_at else None} for us in users]
 
-@app.post("/users/{user_id}/photo", tags=["Gestion Users"])
-async def admin_upload_photo_user(
-    user_id: int,
-    photo: UploadFile = File(...),
-    u: User = Depends(require_admin), db: Session = Depends(get_db),
-):
-    """
-    Téléverser ou remplacer la photo de profil d'un utilisateur (admin).
-    Formats acceptés : image/jpeg, image/png, image/webp. Taille max : 5 Mo.
-    """
-    import base64
-    cible = db.query(User).filter(User.id == user_id).first()
-    if not cible:
-        raise HTTPException(404, "Utilisateur introuvable")
-    MIMES_IMAGES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-    if photo.content_type not in MIMES_IMAGES:
-        raise HTTPException(400, f"Format non supporté. Formats acceptés : {MIMES_IMAGES}")
-    data = await photo.read()
-    if len(data) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Photo trop lourde (max 5 Mo)")
-    b64 = base64.b64encode(data).decode()
-    cible.photo_url = f"data:{photo.content_type};base64,{b64}"
-    db.commit()
-    return {"message": f"Photo de profil de {cible.prenom} {cible.nom} mise à jour ✅",
-            "photo_url": cible.photo_url[:80] + "…"}
-
-
+@app.patch("/users/{user_id}/role", tags=["Gestion Users"])
 def update_user_role(user_id: int, data: RoleUpdate, u: User = Depends(require_admin_general), db: Session = Depends(get_db)):
     if data.role not in {"etudiant", "admin", "admin_general"}:
         raise HTTPException(400, "Rôle invalide")
@@ -1550,13 +1512,10 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
 
     i_ue     = _col("ue", "unite", "intitule", "code_ue")
     i_module = _col("module", "matiere", "cours", "libelle", "designation")
-    i_prof   = _col("prof", "enseignant", "intervenant", "formateur", "charge",
-                    "nom_prof", "nom_enseignant", "teacher", "instructeur", "nom_interv",
-                    "responsable", "titulaire", "charg")
-    i_heures = _col("h_prev", "nb_h", "volume", "credit", "vh", "nb_heure", "nbre_h",
-                    "heures_prev", "heures_total", "total_h", "quota")
+    i_prof   = _col("prof", "enseignant", "intervenant", "formateur", "charge")
+    i_heures = _col("heure", "volume", "h_prev", "nb_h", "nombre", "credit", "vh")
     i_date   = _col("date", "jour", "programme", "calendrier", "seance")
-    i_heure  = _col("horaire", "heure_debut", "debut", "tranche", "heure_cours")
+    i_heure  = _col("horaire", "heure_debut", "debut", "tranche")
     i_salle  = _col("salle", "local", "amphi", "lieu")
     i_duree  = _col("duree", "duree_h")
 
@@ -1583,18 +1542,11 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
 
         if fallback_mode:
             # Mode positionnel : col0=UE/module, col1=prof, col2=heures
-            non_none = [c for c in row if c is not None and str(c).strip() not in ("", "None", "—")]
+            non_none = [c for c in row if c is not None]
             ue_val     = str(non_none[0]).strip() if len(non_none) > 0 else None
             module_val = str(non_none[1]).strip() if len(non_none) > 1 else ue_val
-            # Chercher le prof : si col2 ressemble à un nom (lettres, pas un chiffre), l'utiliser
-            _col2 = str(non_none[2]).strip() if len(non_none) > 2 else None
-            _col3 = str(non_none[3]).strip() if len(non_none) > 3 else None
-            if _col2 and not re.match(r'^\d', _col2):
-                prof_val   = _col2
-                heures_str = _col3 or "0"
-            else:
-                prof_val   = None
-                heures_str = _col2 or "0"
+            prof_val   = str(non_none[2]).strip() if len(non_none) > 2 else None
+            heures_str = str(non_none[3]).strip() if len(non_none) > 3 else "0"
         else:
             ue_val     = _val(i_ue)     or _val(i_module) or "—"
             module_val = _val(i_module) or ue_val
@@ -1617,7 +1569,7 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
 
         date_val  = _val(i_date)
         heure_val = _val(i_heure)
-        duree_val = 3.0   # durée par défaut : 17h30→20h45 = 3h15 – 15min pause = 3h nettes
+        duree_val = 3.0
         if i_duree is not None:
             try:
                 duree_val = float(re.sub(r'[^\d.,]', '', str(_val(i_duree) or "3")).replace(',', '.') or 3)
@@ -1665,9 +1617,9 @@ async def _ia_lire_planning_excel(contenu: bytes, filiere: str, niveau: str, sem
 @app.post("/planning/upload", tags=["Planning"])
 async def upload_planning(
     fichier:   UploadFile = File(...),
-    filiere:   str = Form("SRT"),
-    niveau:    str = Form("M2"),
-    semestre:  str = Form("S1"),
+    filiere:   str = "SRT",
+    niveau:    str = "M2",
+    semestre:  str = "S1",
     u: User = Depends(require_admin), db: Session = Depends(get_db),
 ):
     """Téléverser le planning Excel d'une classe. L'IA lit le fichier et crée les séances."""
@@ -1680,50 +1632,6 @@ async def upload_planning(
     contenu = await fichier.read()
     result  = await _ia_lire_planning_excel(contenu, filiere, niveau, semestre, db)
     return {"message": f"Planning importé ✅", **result}
-
-@app.get("/planning/calendrier", tags=["Planning"])
-def get_planning_calendrier(
-    salle_id:  int,
-    semestre:  Optional[str] = None,
-    date_debut: Optional[str] = None,
-    date_fin:   Optional[str] = None,
-    u: User = Depends(require_admin), db: Session = Depends(get_db),
-):
-    """
-    Planning sous forme de calendrier pour une salle donnée (admin).
-    Paramètres :
-      - salle_id  : ID de la salle (obligatoire) — récupérer via GET /salles
-      - semestre  : S1 | S2 (optionnel)
-      - date_debut / date_fin : filtrer sur une plage (format YYYY-MM-DD, optionnel)
-    Retourne les séances groupées par date pour un affichage calendrier.
-    """
-    salle = db.query(Salle).filter(Salle.id == salle_id, Salle.active == True).first()
-    if not salle:
-        raise HTTPException(404, f"Salle #{salle_id} introuvable ou inactive")
-
-    q = db.query(Seance).filter(Seance.salle_id == salle_id)
-    if semestre:    q = q.filter(Seance.semestre == semestre)
-    if date_debut:  q = q.filter(Seance.date >= date_debut)
-    if date_fin:    q = q.filter(Seance.date <= date_fin)
-    seances = q.order_by(Seance.date, Seance.heure).all()
-
-    # Grouper par date pour le rendu calendrier
-    calendrier: dict = {}
-    for s in seances:
-        jour = s.date or "sans_date"
-        if jour not in calendrier:
-            calendrier[jour] = []
-        calendrier[jour].append(_fmt_seance(s))
-
-    return {
-        "salle": {"id": salle.id, "nom": salle.nom, "site": salle.site, "capacite": salle.capacite},
-        "total_seances": len(seances),
-        "calendrier": [
-            {"date": jour, "seances": seances_jour}
-            for jour, seances_jour in sorted(calendrier.items())
-        ],
-    }
-
 
 @app.get("/planning/classes", tags=["Planning"])
 def get_classes_planning(db: Session = Depends(get_db)):

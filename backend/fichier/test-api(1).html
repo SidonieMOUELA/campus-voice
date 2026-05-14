@@ -375,66 +375,33 @@
 
 <!-- ===== NOTES ===== -->
 <div id="p-notes" class="panel">
-
-  <!-- ADMIN : Ajouter une note à un étudiant -->
-  <div class="card" style="border-color:#2d5a2d">
-    <div class="rb" style="background:#14532d;color:#6ee7b7">POST /notes — Admin</div>
-    <p class="hint">🎓 Workflow admin : sélectionne la filière → l'étudiant → saisis la note.</p>
-
-    <!-- Étape 1 : choisir filière -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">
-      <div>
-        <div style="font-size:10px;color:#6b8ab0;margin-bottom:4px">Étape 1 — Filière</div>
-        <select id="admin-n-filiere" onchange="loadEtudiantsParFiliere()">
-          <option value="">— Sélectionner une filière</option>
-          <option value="BAF">BAF</option><option value="QHSE">QHSE</option><option value="DEV">DEV</option>
-          <option value="SRT">SRT</option><option value="MMC">MMC</option><option value="MJF">MJF</option>
-          <option value="GRH">GRH</option><option value="MAI">MAI</option><option value="TL">TL</option>
-          <option value="GSE">GSE</option><option value="IJF">IJF</option><option value="GFCE">GFCE</option>
-          <option value="GFAE">GFAE</option>
-        </select>
-      </div>
-      <div>
-        <div style="font-size:10px;color:#6b8ab0;margin-bottom:4px">Étape 2 — Étudiant</div>
-        <select id="admin-n-etudiant">
-          <option value="">— Sélectionner un étudiant</option>
-        </select>
-      </div>
-    </div>
-    <div id="etudiant-info-box" style="display:none;background:#060f1e;border:1px solid #1e3a5f;border-radius:7px;padding:8px 11px;font-size:11px;color:#6ee7b7;margin-bottom:9px">
-      👤 Étudiant sélectionné : <span id="etudiant-info-label" style="font-weight:700"></span>
-    </div>
-
-    <!-- Étape 3 : saisir la note -->
-    <div style="font-size:10px;color:#6b8ab0;margin-bottom:4px">Étape 3 — Note</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 10px">
-      <input id="admin-n-mat" placeholder="Matière *" type="text"/>
-      <input id="admin-n-note" placeholder="Note /20 *" type="number" step="0.5" min="0" max="20"/>
-      <select id="admin-n-sem"><option value="S1">Semestre 1</option><option value="S2">Semestre 2</option></select>
-    </div>
-    <button class="btn btn-green" onclick="doNoteAdmin()">➕ Ajouter la note à cet étudiant</button>
-  </div>
-
-  <!-- ÉTUDIANT : Voir et analyser ses notes -->
   <div class="grid2" style="margin-bottom:12px">
     <div class="card">
-      <div class="rb rget">GET /notes/moyenne</div>
-      <button class="btn" onclick="getMoyenne()" style="margin-bottom:10px">Calculer mes moyennes</button>
-      <div id="moy-display" style="font-size:12px;color:#4a6080">Cliquez pour voir les moyennes.</div>
+      <div class="rb rpost">POST /notes</div>
+      <input id="n-mat" placeholder="Matière (ex: Réseaux)" type="text"/>
+      <input id="n-note" placeholder="Note /20 (ex: 14.5)" type="number" step="0.5" min="0" max="20"/>
+      <select id="n-sem"><option value="S1">Semestre 1</option><option value="S2">Semestre 2</option></select>
+      <button class="btn" onclick="doNote()">Ajouter la note</button>
     </div>
     <div class="card">
-      <div class="row">
-        <div class="rb rget">GET /notes</div>
-        <button class="btn-sm" onclick="getNotes()">Voir mes notes</button>
-      </div>
-      <div id="notes-list" style="font-size:12px;color:#4a6080">Cliquez pour voir vos notes.</div>
+      <div class="rb rget">GET /notes/moyenne</div>
+      <button class="btn" onclick="getMoyenne()" style="margin-bottom:10px">Calculer les moyennes</button>
+      <div id="moy-display" style="font-size:12px;color:#4a6080">Cliquez pour voir les moyennes.</div>
     </div>
   </div>
 
-  <!-- ÉTUDIANT : Analyse IA -->
+  <div class="card">
+    <div class="row">
+      <div class="rb rget">GET /notes</div>
+      <button class="btn-sm" onclick="getNotes()">Voir mes notes</button>
+    </div>
+    <div id="notes-list" style="font-size:12px;color:#4a6080">Cliquez pour voir vos notes.</div>
+  </div>
+
+  <!-- Analyse IA notes -->
   <div class="card" style="border-color:#2d2d8b;background:#0d0d24">
     <div class="rb" style="background:#2d1d6e;color:#c4b5fd">GET /notes/analyse → IA</div>
-    <p class="hint">Claude analyse tes performances et génère des recommandations personnalisées. Réservé à l'étudiant connecté — tu ne vois que tes propres notes.</p>
+    <p class="hint">Claude analyse tes performances et génère des recommandations personnalisées.</p>
     <button class="btn" style="background:#2d2d8b" onclick="iaAnalyseNotes()">🧠 Analyser mes notes avec Claude</button>
     <div id="ia-notes-result" style="margin-top:10px"></div>
   </div>
@@ -684,9 +651,6 @@
         <input id="mod-heure" type="time"/>
         <input id="mod-duree" placeholder="Durée (h)" type="number" step="0.5"/>
       </div>
-      <select id="mod-salle">
-        <option value="">— Salle (inchangée)</option>
-      </select>
       <select id="mod-statut">
         <option value="programme">✅ Programmé</option>
         <option value="annule">❌ Annulé</option>
@@ -709,28 +673,6 @@
       <button class="btn-sm" onclick="voirPlanning('semestre')" id="vue-sem2">Semestre complet</button>
     </div>
     <div id="planning-display" style="font-size:12px;color:#4a6080">Connecte-toi pour voir ton planning.</div>
-  </div>
-
-  <!-- ADMIN : Calendrier par salle -->
-  <div class="card" style="border-color:#1d4a6e">
-    <div class="rb rget" style="background:#0c2d4a;color:#67e8f9">GET /planning/calendrier — Admin</div>
-    <p class="hint">Afficher le planning d'une salle sous forme de calendrier. Choisissez la salle puis cliquez sur Charger.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-bottom:9px">
-      <select id="cal-salle" onchange="loadCalendrier()">
-        <option value="">— Sélectionner une salle</option>
-      </select>
-      <select id="cal-semestre">
-        <option value="">— Tous les semestres</option>
-        <option value="S1">Semestre 1</option>
-        <option value="S2">Semestre 2</option>
-      </select>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-bottom:9px">
-      <input id="cal-debut" type="date" placeholder="Date début (optionnel)"/>
-      <input id="cal-fin" type="date" placeholder="Date fin (optionnel)"/>
-    </div>
-    <button class="btn-sm" style="margin-bottom:9px" onclick="loadCalendrier()">📅 Charger le calendrier</button>
-    <div id="cal-display" style="font-size:11px;color:#4a6080"></div>
   </div>
 
   <div class="response" id="planning-resp"></div>
@@ -805,8 +747,6 @@ function tab(name,btn){
   document.getElementById('p-'+name).classList.add('active');
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  // Recharger les données dynamiques selon l'onglet
-  if(name==='planning'){loadClassesSelect();listSalles();}
 }
 function resp(id,data,ok){
   const el=document.getElementById(id);
@@ -819,7 +759,22 @@ function statClass(s){return`s-${s}`}
 function statLabel(s){return{en_attente:'⏳ En attente',en_cours:'🔧 En cours',pris_en_charge:'✋ Pris en charge',resolu:'✅ Résolu'}[s]||s}
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
-// doReg() défini plus bas (version complète avec JSON)
+async function doReg(){
+  const mat=document.getElementById('r-mat').value.trim().toUpperCase();
+  const pw=document.getElementById('r-pass').value;
+  const prenom=document.getElementById('r-prenom').value.trim();
+  const nom=document.getElementById('r-nom').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const filiere=document.getElementById('r-filiere').value.trim();
+  const niveau=document.getElementById('r-niveau').value.trim();
+  const classe=document.getElementById('r-classe').value.trim();
+  if(!mat||!pw){alert('Remplis le matricule et le mot de passe');return;}
+  try{
+    const r=await fetch(BASE+'/register',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({username:mat,password:pw,prenom,nom,email,filiere,niveau,classe})});
+    const d=await r.json(); resp('auth-resp',d,r.ok);
+    if(r.ok) alert(`✅ Compte créé pour ${mat} ! Tu peux maintenant te connecter.`);
+  }catch{resp('auth-resp',{erreur:'API inaccessible'},false);}
+}
 async function doLogin(){
   const mat=document.getElementById('l-mat').value.trim().toUpperCase();
   const pw=document.getElementById('l-pass').value;
@@ -1045,47 +1000,15 @@ async function doSatisfaction(){
 }
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
-
-// Admin : charger les étudiants d'une filière
-async function loadEtudiantsParFiliere(){
-  if(!token){alert('Connecte-toi d\'abord');return;}
-  const filiere=document.getElementById('admin-n-filiere').value;
-  const sel=document.getElementById('admin-n-etudiant');
-  sel.innerHTML='<option value="">— Chargement…</option>';
-  document.getElementById('etudiant-info-box').style.display='none';
-  if(!filiere){sel.innerHTML='<option value="">— Sélectionner un étudiant</option>';return;}
-  try{
-    const r=await fetch(`${BASE}/notes/etudiants?filiere=${filiere}`,{headers:{Authorization:'Bearer '+token}});
-    const d=await r.json();
-    if(!r.ok){sel.innerHTML='<option value="">Erreur : '+( d.detail||'accès refusé')+'</option>';return;}
-    if(!d.length){sel.innerHTML='<option value="">Aucun étudiant dans cette filière</option>';return;}
-    sel.innerHTML='<option value="">— Sélectionner un étudiant</option>'+
-      d.map(e=>`<option value="${e.id}" data-label="${e.prenom} ${e.nom} (${e.matricule}) — ${e.classe||'—'}">${e.prenom} ${e.nom} — ${e.matricule} (${e.classe||'?'})</option>`).join('');
-    sel.onchange=()=>{
-      const opt=sel.options[sel.selectedIndex];
-      const box=document.getElementById('etudiant-info-box');
-      if(sel.value){document.getElementById('etudiant-info-label').textContent=opt.dataset.label;box.style.display='block';}
-      else box.style.display='none';
-    };
-  }catch{sel.innerHTML='<option value="">API inaccessible</option>';}
-}
-
-async function doNoteAdmin(){
+async function doNote(){
   if(!token){resp('notes-resp',{erreur:'Connecte-toi d\'abord'},false);return;}
-  const user_id=document.getElementById('admin-n-etudiant').value;
-  const matiere=document.getElementById('admin-n-mat').value.trim();
-  const noteVal=document.getElementById('admin-n-note').value;
-  const semestre=document.getElementById('admin-n-sem').value;
-  if(!user_id){alert('Sélectionne un étudiant');return;}
-  if(!matiere||!noteVal){alert('Remplis la matière et la note');return;}
-  const body={user_id:parseInt(user_id),matiere,note:parseFloat(noteVal),semestre};
+  const body={matiere:document.getElementById('n-mat').value,note:parseFloat(document.getElementById('n-note').value),semestre:document.getElementById('n-sem').value};
   try{
     const r=await fetch(BASE+'/notes',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
-    const d=await r.json(); resp('notes-resp',d,r.ok);
-    if(r.ok) alert(`✅ Note ${noteVal}/20 en ${matiere} ajoutée à l'étudiant !`);
+    resp('notes-resp',await r.json(),r.ok);
+    if(r.ok){getMoyenne();getNotes();}
   }catch{resp('notes-resp',{erreur:'API inaccessible'},false);}
 }
-
 async function getMoyenne(){
   if(!token)return;
   const r=await fetch(BASE+'/notes/moyenne',{headers:{Authorization:'Bearer '+token}});
@@ -1235,8 +1158,7 @@ async function iaRapport(){
 }
 
 function exportPDF(){
-  if(!token){alert('Connecte-toi d\'abord pour exporter le rapport PDF');return;}
-  window.open(BASE+'/export/pdf?token='+token,'_blank');
+  window.open(BASE+'/export/pdf?token='+localStorage.getItem('token'),'_blank');
 }
 
 // ─── AUTH (mise à jour) ───────────────────────────────────────────────────────
@@ -1255,16 +1177,9 @@ async function doReg(){
   const filiere=document.getElementById('r-filiere').value;
   const niveau=document.getElementById('r-niveau').value;
   if(!mat||!pw||!prenom||!nom){alert('Remplis au minimum : Prénom, Nom, Matricule, Mot de passe');return;}
-  // Le backend /register lit username & password comme query params ou form-urlencoded
-  // (pas JSON) — on envoie donc en form-urlencoded avec les bons noms de champs
-  const params=new URLSearchParams({username:mat,password:pw,prenom,nom});
-  if(email)  params.append('email',email);
-  if(filiere) params.append('filiere',filiere);
-  if(niveau)  params.append('niveau',niveau);
   try{
-    const r=await fetch(BASE+'/register',{method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:params.toString()});
+    const r=await fetch(BASE+'/register',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({matricule:mat,mot_de_passe:pw,prenom,nom,email:email||undefined,filiere:filiere||undefined,niveau:niveau||undefined})});
     const d=await r.json(); resp('auth-resp',d,r.ok);
     if(r.ok) alert(`✅ Compte créé !\nMatricule : ${d.matricule}\nClasse : ${d.classe||'—'}\nFilière : ${d.filiere||'—'}\n\nTu peux maintenant te connecter.`);
   }catch{resp('auth-resp',{erreur:'API inaccessible'},false);}
@@ -1351,21 +1266,7 @@ async function uploadPlanning(){
   try{
     const r=await fetch(BASE+'/planning/upload',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
     const d=await r.json(); resp('planning-resp',d,r.ok);
-    if(r.ok){
-      const classe=`${niveau}-${filiere}`;
-      alert(`✅ Planning uploadé !\n${d.seances_importees||0} séances importées pour ${classe}`);
-      // Recharger la liste des classes dans le select admin
-      await loadClassesSelect();
-      // Sélectionner automatiquement la classe importée dans le select
-      const sel=document.getElementById('pl-classe-mod');
-      if(sel){
-        sel.value=classe;
-        // Charger et afficher les séances de cette classe
-        await loadSeances();
-      }
-      // Afficher le planning côté étudiant aussi (vue semestre)
-      voirPlanning('semestre');
-    }
+    if(r.ok) alert(`✅ Planning uploadé ! ${d.seances_importees||0} séances importées pour ${niveau}-${filiere}`);
   }catch{resp('planning-resp',{erreur:'API inaccessible'},false);}
 }
 
@@ -1387,34 +1288,12 @@ async function listSalles(){
     const r=await fetch(BASE+'/salles',{headers:token?{Authorization:'Bearer '+token}:{}});
     const d=await r.json();
     const el=document.getElementById('salles-list');
-    // Peupler le select de modification de séance
-    const selSalle=document.getElementById('mod-salle');
-    if(selSalle){
-      selSalle.innerHTML='<option value="">— Salle (inchangée)</option>';
-      if(Array.isArray(d)) d.forEach(s=>{
-        const opt=document.createElement('option');
-        opt.value=s.id;
-        opt.textContent=`[${s.site}] ${s.nom} (${s.capacite}p)`;
-        selSalle.appendChild(opt);
-      });
-    }
-    // Peupler aussi le select du calendrier par salle
-    const selCal=document.getElementById('cal-salle');
-    if(selCal){
-      selCal.innerHTML='<option value="">— Sélectionner une salle</option>';
-      if(Array.isArray(d)) d.forEach(s=>{
-        const opt=document.createElement('option');
-        opt.value=s.id;
-        opt.textContent=`[${s.site}] ${s.nom} (${s.capacite}p)`;
-        selCal.appendChild(opt);
-      });
-    }
     if(!Array.isArray(d)||!d.length){el.textContent='Aucune salle enregistrée.';return;}
     const bySite={};
     d.forEach(s=>{(bySite[s.site]=bySite[s.site]||[]).push(s);});
     el.innerHTML=Object.entries(bySite).map(([site,salles])=>
       `<div style="margin-bottom:6px"><span style="color:#6ee7b7;font-size:11px;font-weight:700">${site}</span> — `+
-      salles.map(s=>`<span style="color:#93c5fd;font-size:10px;background:#0d1f3c;padding:1px 6px;border-radius:3px;margin:2px">${s.nom} (${s.capacite}p) — ID:${s.id}</span>`).join('')+
+      salles.map(s=>`<span style="color:#93c5fd;font-size:10px;background:#0d1f3c;padding:1px 6px;border-radius:3px;margin:2px">${s.nom} (${s.capacite}p)</span>`).join('')+
       '</div>'
     ).join('');
   }catch{}
@@ -1425,20 +1304,18 @@ async function loadSeances(){
   const classe=document.getElementById('pl-classe-mod').value;
   const date=document.getElementById('pl-date-mod').value;
   if(!classe){alert('Sélectionne une classe');return;}
-  // Recharger les salles pour peupler le select de modification
-  await listSalles();
   try{
     let url=`${BASE}/planning?classe=${classe}`;
     if(date) url+=`&date=${date}`;
     const r=await fetch(url,{headers:{Authorization:'Bearer '+token}});
     const d=await r.json();
     const el=document.getElementById('seances-list');
-    if(!r.ok||!d.length){el.innerHTML='<span style="color:#4a6080">Aucune séance pour cette classe' + (date ? ' à cette date' : '') + '.</span>';document.getElementById('form-modif-seance').style.display='none';return;}
+    if(!r.ok||!d.length){el.innerHTML='<span style="color:#4a6080">Aucune séance.</span>';return;}
     el.innerHTML=d.map(s=>`
       <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e3a5f;cursor:pointer" onclick="selSeance(${JSON.stringify(s).replace(/"/g,'&quot;')})">
         <div>
           <span style="color:#e2e8f0;font-size:11px;font-weight:600">${s.ue} — ${s.module}</span>
-          <div style="color:#4a6080;font-size:10px">${s.date||'—'} · ${s.heure||'—'} · ${s.prof||'—'} · 🏫 ${s.salle||'aucune salle'}</div>
+          <div style="color:#4a6080;font-size:10px">${s.date} · ${s.heure}h · ${s.prof||'—'} · ${s.salle||'—'}</div>
         </div>
         <span style="font-size:10px;color:${{programme:'#22c55e',annule:'#ef4444',reporte:'#fbbf24',en_ligne:'#93c5fd'}[s.statut]||'#e2e8f0'}">${s.statut}</span>
       </div>`).join('');
@@ -1456,21 +1333,15 @@ function selSeance(s){
   document.getElementById('mod-duree').value=s.duree||'';
   document.getElementById('mod-statut').value=s.statut||'programme';
   document.getElementById('mod-note').value=s.note||'';
-  // Scroll vers le formulaire
-  document.getElementById('form-modif-seance').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 async function modifierSeance(){
   if(!token){resp('planning-resp',{erreur:'Connecte-toi d\'abord'},false);return;}
   const id=document.getElementById('mod-id').value;
-  const salleVal=document.getElementById('mod-salle').value;
   const body={ue:document.getElementById('mod-ue').value,module:document.getElementById('mod-module').value,
     prof:document.getElementById('mod-prof').value,date:document.getElementById('mod-date').value,
     heure:document.getElementById('mod-heure').value,duree:parseFloat(document.getElementById('mod-duree').value)||null,
-    statut:document.getElementById('mod-statut').value,note:document.getElementById('mod-note').value||null,
-    salle_id:salleVal?parseInt(salleVal):null};
-  // Supprimer les clés null pour ne pas écraser ce qui existe
-  Object.keys(body).forEach(k=>{if(body[k]===null||body[k]==='') delete body[k];});
+    statut:document.getElementById('mod-statut').value,note:document.getElementById('mod-note').value||null};
   try{
     const r=await fetch(`${BASE}/planning/seance/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json(); resp('planning-resp',d,r.ok);
@@ -1533,75 +1404,20 @@ async function loadClassesSelect(){
   }catch{}
 }
 
-// Calendrier par salle (admin)
-async function loadCalendrier(){
-  if(!token){document.getElementById('cal-display').innerHTML='<span style="color:#fbbf24">Connecte-toi d\'abord.</span>';return;}
-  const salleId=document.getElementById('cal-salle').value;
-  if(!salleId){document.getElementById('cal-display').innerHTML='<span style="color:#fbbf24">Sélectionne une salle.</span>';return;}
-  const semestre=document.getElementById('cal-semestre').value;
-  const debut=document.getElementById('cal-debut').value;
-  const fin=document.getElementById('cal-fin').value;
-  let url=`${BASE}/planning/calendrier?salle_id=${salleId}`;
-  if(semestre) url+=`&semestre=${semestre}`;
-  if(debut) url+=`&date_debut=${debut}`;
-  if(fin) url+=`&date_fin=${fin}`;
-  document.getElementById('cal-display').innerHTML='<span style="color:#818cf8">⏳ Chargement...</span>';
-  try{
-    const r=await fetch(url,{headers:{Authorization:'Bearer '+token}});
-    const d=await r.json();
-    if(!r.ok){document.getElementById('cal-display').innerHTML=`<span style="color:#fbbf24">${d.detail||'Erreur'}</span>`;return;}
-    if(!d.calendrier||!d.calendrier.length){document.getElementById('cal-display').innerHTML='<span style="color:#4a6080">Aucune séance pour cette salle.</span>';return;}
-    const statColor={programme:'#22c55e',annule:'#ef4444',reporte:'#fbbf24',en_ligne:'#93c5fd'};
-    let html=`<div style="font-size:11px;color:#6b8ab0;margin-bottom:10px">🏫 <b style="color:#67e8f9">${d.salle.nom}</b> — ${d.salle.site} · ${d.total_seances} séance(s)</div>`;
-    d.calendrier.forEach(jour=>{
-      const joursNoms=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-      let dateLabel=jour.date;
-      if(jour.date&&jour.date!=='sans_date'){
-        const dt=new Date(jour.date+'T00:00:00');
-        dateLabel=`${joursNoms[dt.getDay()]} ${jour.date}`;
-      }
-      html+=`<div style="font-size:11px;font-weight:700;color:#a8c5e8;margin:12px 0 5px;padding-top:8px;border-top:1px solid #1e3a5f">📅 ${dateLabel} <span style="font-size:10px;color:#4a6080;font-weight:400">(${jour.seances.length} cours)</span></div>`;
-      jour.seances.forEach(s=>{
-        const sc=statColor[s.statut]||'#e2e8f0';
-        const annule=s.statut==='annule';
-        html+=`<div style="padding:7px 10px;background:#0d1f3c;border-radius:7px;margin-bottom:4px;border-left:3px solid ${sc};${annule?'opacity:.5;text-decoration:line-through':''}">
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:#e2e8f0;font-size:11px;font-weight:600">${s.ue||'—'} — ${s.module||'—'}</span>
-            <span style="color:${sc};font-size:10px">${s.statut}</span>
-          </div>
-          <div style="color:#4a6080;font-size:10px;margin-top:2px">
-            🕐 ${s.heure||'—'} · ${s.duree||''}h &nbsp;|&nbsp; 👨‍🏫 ${s.prof||'—'} &nbsp;|&nbsp; 🎓 ${s.classe||'—'}
-          </div>
-          ${s.note?`<div style="color:#fbbf24;font-size:10px;margin-top:2px">ℹ️ ${s.note}</div>`:''}
-        </div>`;
-      });
-    });
-    document.getElementById('cal-display').innerHTML=html;
-  }catch(e){document.getElementById('cal-display').innerHTML=`<span style="color:#e24b4a">Erreur : ${e.message}</span>`;}
-}
-
 // ─── INFOS ────────────────────────────────────────────────────────────────────
 async function publierInfo(){
   if(!token){resp('infos-resp',{erreur:'Connecte-toi d\'abord'},false);return;}
   const titre=document.getElementById('i-titre').value.trim();
   if(!titre){alert('Le titre est obligatoire');return;}
-  const fd=new FormData();
-  fd.append('titre',titre);
-  const desc=document.getElementById('i-desc').value.trim();
-  if(desc) fd.append('description',desc);
-  const lien=document.getElementById('i-lien').value.trim();
-  if(lien) fd.append('lien',lien);
-  const dateEv=document.getElementById('i-date').value;
-  if(dateEv) fd.append('date_evenement',dateEv);
-  fd.append('cible',document.getElementById('i-cible').value||'tous');
-  // Fichier image
-  const imgFile=document.getElementById('i-image-file').files[0];
-  if(imgFile) fd.append('image',imgFile);
-  // Fichier vidéo
-  const vidFile=document.getElementById('i-video-file').files[0];
-  if(vidFile) fd.append('video',vidFile);
+  const body={titre,
+    description:document.getElementById('i-desc').value.trim()||null,
+    image_url:document.getElementById('i-image').value.trim()||null,
+    video_url:document.getElementById('i-video').value.trim()||null,
+    lien:document.getElementById('i-lien').value.trim()||null,
+    date_evenement:document.getElementById('i-date').value||null,
+    cible:document.getElementById('i-cible').value||'tous'};
   try{
-    const r=await fetch(BASE+'/infos',{method:'POST',headers:{Authorization:'Bearer '+token},body:fd});
+    const r=await fetch(BASE+'/infos',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});
     const d=await r.json(); resp('infos-resp',d,r.ok);
     if(r.ok){alert('✅ Information publiée !');getInfos();}
   }catch{resp('infos-resp',{erreur:'API inaccessible'},false);}
