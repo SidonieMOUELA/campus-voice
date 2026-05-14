@@ -1,7 +1,7 @@
 // ─── Campus Voice — Couche API v4.0 ──────────────────────────────────────────
 // Connecté à l'API FastAPI réelle. Aucune donnée fictive.
 
-const BASE = "http://localhost:8000";
+const BASE = "[https://campus-voice.onrender.com](https://campus-voice.onrender.com)";
 
 // ─── Utilitaire fetch ─────────────────────────────────────────────────────────
 async function req(url, opts = {}, token = null) {
