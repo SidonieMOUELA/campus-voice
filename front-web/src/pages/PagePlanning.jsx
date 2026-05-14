@@ -10,7 +10,7 @@ import {
   getSalles, createSalle, deleteSalle, uploadPlanning,
 } from "../api.js";
 
-const BASE = "http://localhost:8000";
+const BASE = "https://campus-voice-8d0u.onrender.com";
 
 const STATUT_COLOR = {
   programme: T.cyan,
