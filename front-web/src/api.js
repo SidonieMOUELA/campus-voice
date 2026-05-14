@@ -162,10 +162,16 @@ export const reagirInfo = (t, id, emoji) =>
 
 // ─── UTILISATEURS ─────────────────────────────────────────────────────────────
  
-/** Liste des utilisateurs (admin_general) */
+/** Liste des utilisateurs (admin_general) 
 export const getUsers = (t, role = null) => {
   const q = role ? `?role=${role}` : "";
   return req(`/users${q}`, {}, t);
+};*/
+
+/** Liste des utilisateurs (admin_general) */
+export const getUsers = (t, role = null) => {
+  const q = role ? ?role=${role} : "";
+  return req(/users${q}, {}, t);
 };
  
 /** Créer un compte */
