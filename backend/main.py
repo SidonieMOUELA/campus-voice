@@ -37,10 +37,16 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
 # ── App ──────────────────────────────────────────────────────────────────────
-app = FastAPI(title="CampusVoice API", version="3.0.0")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["https://campus-voice-api-web.vercel.app/"],
-    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=[
+        "https://campus-voice-api-web.vercel.app",  # sans slash final
+        "http://localhost:5173",                      # dev local
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 pwd_context   = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
