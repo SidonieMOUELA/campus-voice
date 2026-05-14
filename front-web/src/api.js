@@ -170,8 +170,8 @@ export const getUsers = (t, role = null) => {
 
 /** Liste des utilisateurs (admin_general) */
 export const getUsers = (t, role = null) => {
-  const q = role ? ?role=${role} : "";
-  return req(/users${q}, {}, t);
+  const q = role ? `?role=${role}` : "";
+  return req(`/users${q}`, {}, t);
 };
  
 /** Créer un compte */
