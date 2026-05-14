@@ -40,7 +40,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="CampusVoice API", version="3.0.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["https://campus-voice-api-web.vercel.app"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
