@@ -158,24 +158,65 @@ export const reagirInfo = (t, id, emoji) =>
 
 // ─── UTILISATEURS ─────────────────────────────────────────────────────────────
 
+
+
+// ─── UTILISATEURS ─────────────────────────────────────────────────────────────
+ 
 /** Liste des utilisateurs (admin_general) */
 export const getUsers = (t, role = null) => {
   const q = role ? `?role=${role}` : "";
   return req(`/users${q}`, {}, t);
 };
-
+ 
 /** Créer un compte */
-export const createUser = (t, data) =>
-  req("/register", { method: "POST", body: JSON.stringify(data) }, t);
-
+export async function createUser(t, data) {
+  // /register attend application/x-www-form-urlencoded
+  // avec les champs : username, password, prenom, nom, email, filiere, niveau, classe
+  const fd = new URLSearchParams();
+  fd.append("username",  (data.matricule || "").toUpperCase());
+  fd.append("password",  data.mot_de_passe || "");
+  fd.append("prenom",    data.prenom || "");
+  fd.append("nom",       data.nom || "");
+  if (data.email)   fd.append("email",   data.email);
+  if (data.filiere) fd.append("filiere", data.filiere);
+  if (data.niveau)  fd.append("niveau",  data.niveau);
+  if (data.classe)  fd.append("classe",  data.classe);
+ 
+  const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+  if (t) headers["Authorization"] = `Bearer ${t}`;
+ 
+  const r = await fetch(`${BASE}/register`, {
+    method: "POST",
+    headers,
+    body: fd,
+  });
+ 
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    let msg = `Erreur ${r.status}`;
+    if (typeof d.detail === "string") {
+      msg = d.detail;
+    } else if (Array.isArray(d.detail)) {
+      msg = d.detail
+        .map(e => {
+          const champ = Array.isArray(e.loc) ? e.loc.filter(x => x !== "body").join(".") : "";
+          return champ ? `${champ} : ${e.msg}` : e.msg;
+        })
+        .join(" | ");
+    }
+    throw new Error(msg);
+  }
+  return d;
+}
+ 
 /** Changer le rôle */
 export const updateRole = (t, id, role) =>
   req(`/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }, t);
-
+ 
 /** Suspendre / réactiver */
 export const toggleSuspend = (t, id) =>
   req(`/users/${id}/suspendre`, { method: "PATCH" }, t);
-
+ 
 /** Supprimer un compte */
 export const deleteUser = (t, id) =>
   req(`/users/${id}`, { method: "DELETE" }, t);
