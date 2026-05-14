@@ -1,4 +1,4 @@
-export const API_URL = 'http://192.168.1.35:8000';
+export const API_URL = 'https://campus-voice-8d0u.onrender.com';
 
 export const ENDPOINTS = {
   login:          `${API_URL}/token`,
