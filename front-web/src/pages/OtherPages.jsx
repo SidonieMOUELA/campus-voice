@@ -1624,7 +1624,7 @@ export function PageUtilisateurs({ token, showToast }) {
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
-    try {
+   /*try {
       await createUser(token, form);
       showToast?.("✅ Compte créé", "success");
       setModal(false);
@@ -1633,8 +1633,29 @@ export function PageUtilisateurs({ token, showToast }) {
     } catch (e) {
       showToast?.("❌ " + e.message, "error");
     }
+  }; */
+    try {
+      // On envoie UNIQUEMENT les champs que Pydantic UserRegister accepte
+      const payload = {
+        matricule:    form.matricule.toUpperCase(),
+        mot_de_passe: form.mot_de_passe,
+        nom:          form.nom,
+        prenom:       form.prenom,
+        filiere:      form.filiere || undefined,
+        niveau:       form.niveau  || undefined,
+      };
+      await createUser(token, payload);
+      // Ensuite on met à jour le rôle séparément si besoin
+      showToast?.("✅ Compte créé", "success");
+      setModal(false);
+      setForm({ matricule: "", nom: "", prenom: "", mot_de_passe: "",
+                filiere: "", niveau: "", role: "etudiant" });
+      load();
+    } catch (e) {
+      showToast?.("❌ " + e.message, "error");
+    }
   };
-
+  
   const changeRole = async (u, role) => {
     try {
       await updateRole(token, u.id, role);
