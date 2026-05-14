@@ -29,6 +29,7 @@ ALGORITHM                   = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 DATABASE_URL                = os.getenv("DATABASE_URL")
 GROQ_API_KEY                = os.getenv("GROQ_API_KEY", "")   # Gratuit sur console.groq.com
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 # ── DB ───────────────────────────────────────────────────────────────────────
 engine       = create_engine(DATABASE_URL)
